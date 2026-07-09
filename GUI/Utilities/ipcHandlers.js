@@ -93,7 +93,7 @@ ipcMain.handle('select-pdf-file', async () => {
 ipcMain.handle('select-back-image', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }]
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
   });
   if (canceled || !filePaths || filePaths.length === 0) {
     return null;

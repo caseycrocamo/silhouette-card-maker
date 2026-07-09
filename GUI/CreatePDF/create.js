@@ -113,6 +113,13 @@ function updateConflictWarning() {
     warning.classList.toggle('hidden', !conflict);
 }
 
+function updateSectionVisibility() {
+    const onlyFrontsCheckbox = document.getElementById('onlyFrontsCheckbox');
+    const onlyFronts = !!(onlyFrontsCheckbox && onlyFrontsCheckbox.checked);
+    document.getElementById('doubleSidedSection').classList.toggle('hidden', onlyFronts);
+    document.getElementById('backImageSection').classList.toggle('hidden', onlyFronts);
+}
+
 function loadDoubleSidedImages() {
     return ipcRenderer.invoke('get-double-sided-images').then(files => {
         doubleSidedFilenames = files.slice();
@@ -235,6 +242,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         pdfArgsInput.value = args.trim();
         updateConflictWarning();
+        updateSectionVisibility();
     });
 
     // One-time sync of the Only Fronts checkbox from the Card List workflow choice.
@@ -243,6 +251,7 @@ window.addEventListener('DOMContentLoaded', () => {
         onlyFrontsCheckbox.checked = (savedOnlyFronts === 'true');
         onlyFrontsCheckbox.dispatchEvent(new Event('change'));
     }
+    updateSectionVisibility();
 
     loadImages();
     loadBackImage();
