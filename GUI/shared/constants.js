@@ -7,6 +7,8 @@ const BACK_DIR = path.join(GAME_DIR, 'back');
 const OUTPUT_DIR = path.join(GAME_DIR, 'output');
 const DECKLIST_DIR = path.join(GAME_DIR, 'decklist');
 const DOUBLE_SIDED_DIR = path.join(GAME_DIR, 'double_sided');
+const DATA_DIR = path.join(__dirname, '../../data');
+const CALIBRATION_DIR = path.join(__dirname, '../../calibration');
 
 
 function getUserDataDir(subdir) {
@@ -38,6 +40,12 @@ function getDecklistDir() {
 function getDoubleSidedDir() {
     return getUserDataDir('double_sided') || DOUBLE_SIDED_DIR;
 }
+function getDataDir() {
+    return getUserDataDir('data') || DATA_DIR;
+}
+function getCalibrationDir() {
+    return CALIBRATION_DIR;
+}
 
 module.exports = {
     getFrontDir,
@@ -45,4 +53,6 @@ module.exports = {
     getOutputDir,
     getDecklistDir,
     getDoubleSidedDir,
+    getDataDir,
+    getCalibrationDir,
 };

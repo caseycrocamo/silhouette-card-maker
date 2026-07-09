@@ -1246,18 +1246,23 @@ class OffsetData(BaseModel):
     y_offset: int
 
 def save_offset(x_offset, y_offset) -> None:
+    data_directory = os.environ.get('CARD_MAKER_DATA_DIR', 'data')
+
     # Create the directory if it doesn't exist
-    os.makedirs('data', exist_ok=True)
+    os.makedirs(data_directory, exist_ok=True)
 
     # Save the offset data to a JSON file
-    with open('data/offset_data.json', 'w') as offset_file:
+    with open(os.path.join(data_directory, 'offset_data.json'), 'w') as offset_file:
         offset_file.write(OffsetData(x_offset=x_offset, y_offset=y_offset).model_dump_json(indent=4))
 
     print('Offset data saved!')
 
 def load_saved_offset() -> OffsetData:
-    if os.path.exists('data/offset_data.json'):
-        with open('data/offset_data.json', 'r') as offset_file:
+    data_directory = os.environ.get('CARD_MAKER_DATA_DIR', 'data')
+    offset_path = os.path.join(data_directory, 'offset_data.json')
+
+    if os.path.exists(offset_path):
+        with open(offset_path, 'r') as offset_file:
             try:
                 data = json.load(offset_file)
                 return OffsetData(**data)

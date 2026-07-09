@@ -1,13 +1,16 @@
-const { BrowserWindow, ipcMain } = require('electron');
+const { BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { runCreatePdf, runOffsetPdf } = require('./pdfWorkerClient');
 const {
   getFrontDir,
   getBackDir,
   getOutputDir,
   getDecklistDir,
-  getDoubleSidedDir
+  getDoubleSidedDir,
+  getDataDir,
+  getCalibrationDir
 } = require('../shared/constants');
 let watcher = null;
 
@@ -51,57 +54,100 @@ ipcMain.handle('clear-front-images', async () => {
     return 'Error clearing images: ' + err;
   }
 });
-ipcMain.handle('run-create-pdf', async (event, argsString) => {
-  return new Promise((resolve, reject) => {
-    // Split argsString into array, respecting quotes
-    const args = argsString.match(/(?:[^"\s]+|"[^"]*")+/g) || [];
-    
-  // Use platform-specific executable name in the packaged bin directory
-  const executableName = process.platform === 'win32' ? 'create_pdf.exe' : 'create_pdf';
-  // In production, use process.resourcesPath; in dev, use __dirname
-  const isPackaged = require('electron').app.isPackaged;
-  const baseDir = isPackaged
-    ? require('path').join(process.resourcesPath, 'bin')
-    : require('path').join(__dirname, '../bin');
-  const exePath = require('path').join(baseDir, executableName);
-  const cwd = baseDir;
+ipcMain.handle('get-default-calibration-pdf', async () => {
+  return path.join(getCalibrationDir(), 'letter_calibration.pdf');
+});
 
-    // Ensure the executable has proper permissions on Unix-like systems
-    if (process.platform !== 'win32') {
-      try {
-        fs.chmodSync(exePath, '755');
-      } catch (err) {
-        console.error('Error setting executable permissions:', err);
-      }
-    }
-
-    const pdfProcess = spawn(exePath, args, { 
-      shell: false, // Set to false for better security
-      cwd,
-      env: { 
-        ...process.env,
-        CARD_MAKER_FRONT_DIR: getFrontDir(),
-        CARD_MAKER_BACK_DIR: getBackDir(),
-        CARD_MAKER_OUTPUT_DIR: getOutputDir(),
-        CARD_MAKER_DOUBLE_SIDED_DIR: getDoubleSidedDir()
-      },
-    });
-
-    let stdout = '';
-    let stderr = '';
-    pdfProcess.stdout.on('data', data => { stdout += data.toString(); });
-    pdfProcess.stderr.on('data', data => { stderr += data.toString(); });
-    pdfProcess.on('error', (err) => {
-      reject(`Failed to start PDF process: ${err.message}`);
-    });
-    pdfProcess.on('close', code => {
-      if (code === 0) {
-        resolve(stdout);
-      } else {
-        reject(stderr || `Exited with code ${code}`);
-      }
-    });
+ipcMain.handle('select-pdf-file', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    defaultPath: getOutputDir(),
+    properties: ['openFile'],
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
   });
+  if (canceled || !filePaths || filePaths.length === 0) {
+    return null;
+  }
+  return filePaths[0];
+});
+
+ipcMain.handle('select-back-image', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }]
+  });
+  if (canceled || !filePaths || filePaths.length === 0) {
+    return null;
+  }
+  const backDir = getBackDir();
+  try {
+    const files = await fs.promises.readdir(backDir);
+    for (const file of files) {
+      await fs.promises.unlink(path.join(backDir, file));
+    }
+    const ext = path.extname(filePaths[0]) || '.png';
+    const destName = `back${ext}`;
+    await fs.promises.copyFile(filePaths[0], path.join(backDir, destName));
+    return destName;
+  } catch (err) {
+    throw new Error('Error uploading back image: ' + err);
+  }
+});
+
+ipcMain.handle('clear-back-image', async () => {
+  const backDir = getBackDir();
+  try {
+    const files = await fs.promises.readdir(backDir);
+    for (const file of files) {
+      await fs.promises.unlink(path.join(backDir, file));
+    }
+    return 'Back image cleared.';
+  } catch (err) {
+    return 'Error clearing back image: ' + err;
+  }
+});
+
+ipcMain.handle('run-create-pdf', async (event, argsString) => {
+  // Split argsString into array, respecting quotes
+  const args = argsString.match(/(?:[^"\s]+|"[^"]*")+/g) || [];
+  const resp = await runCreatePdf(args);
+  if (resp.ok) {
+    return resp.log;
+  }
+  throw new Error(resp.error || 'Exited with error');
+});
+
+ipcMain.handle('read-offset-data', async () => {
+  const offsetPath = path.join(getDataDir(), 'offset_data.json');
+  try {
+    const contents = await fs.promises.readFile(offsetPath, 'utf8');
+    const data = JSON.parse(contents);
+    return {
+      x_offset: data.x_offset || 0,
+      y_offset: data.y_offset || 0
+    };
+  } catch (err) {
+    return { x_offset: 0, y_offset: 0 };
+  }
+});
+
+ipcMain.handle('save-offset-data', async (event, { x_offset, y_offset } = {}) => {
+  const dataDir = getDataDir();
+  await fs.promises.mkdir(dataDir, { recursive: true });
+  const offsetPath = path.join(dataDir, 'offset_data.json');
+  const data = {
+    x_offset: Number(x_offset) || 0,
+    y_offset: Number(y_offset) || 0
+  };
+  await fs.promises.writeFile(offsetPath, JSON.stringify(data, null, 4), 'utf8');
+  return data;
+});
+
+ipcMain.handle('run-offset-pdf', async (event, { pdfPath, xOffset, yOffset, save } = {}) => {
+  const resp = await runOffsetPdf({ pdfPath, xOffset, yOffset, save });
+  if (resp.ok) {
+    return resp.log; // must still contain "Offset PDF: <path>" on success
+  }
+  throw new Error(resp.error || 'Exited with error');
 });
 
 ipcMain.handle('run-md-to-pdf', async (event, options = {}) => {
@@ -215,7 +261,7 @@ ipcMain.handle('get-front-images', async () => {
 ipcMain.handle('get-back-images', async () => {
   try {
     const files = await fs.promises.readdir(getBackDir());
-    return files.filter(f => f.endsWith('.png'));
+    return files.filter(f => /\.(png|jpe?g)$/i.test(f));
   } catch (err) {
     return [];
   }

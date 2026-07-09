@@ -1,5 +1,6 @@
 const { app, BrowserWindow } = require('electron');
 require('./Utilities/ipcHandlers');
+const { startPdfWorker, stopPdfWorker } = require('./Utilities/pdfWorkerClient');
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -13,10 +14,20 @@ function createWindow() {
   win.loadFile('Home/home.html');
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  // Fire-and-forget: start the persistent PDF worker in the background so the
+  // window paints immediately while the ~12s worker startup tax runs behind it.
+  startPdfWorker();
+});
+
+app.on('before-quit', () => {
+  stopPdfWorker();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    stopPdfWorker();
     app.quit();
   }
 });
