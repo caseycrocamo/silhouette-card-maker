@@ -1,5 +1,9 @@
 const { ipcRenderer } = require('electron');
-const { getFrontDir, getBackDir } = require('../shared/constants');
+const { getFrontDir, getBackDir, getDoubleSidedDir } = require('../shared/constants');
+
+// Cached filename sets for cross-validation between front and double_sided images.
+let frontFilenames = [];
+let doubleSidedFilenames = [];
 
 let hoverPreviewEl = null;
 let hoverPreviewTimeout = null;
@@ -71,7 +75,8 @@ function attachHoverPreview(img) {
 }
 
 function loadImages() {
-    ipcRenderer.invoke('get-front-images').then(files => {
+    return ipcRenderer.invoke('get-front-images').then(files => {
+        frontFilenames = files.slice();
         const grid = document.getElementById('frontImagesGrid');
         grid.innerHTML = '';
         files.forEach(f => {
@@ -95,6 +100,60 @@ function loadImages() {
             div.appendChild(label);
             grid.appendChild(div);
         });
+        // Re-validate double-sided orphan badges against the refreshed front set.
+        loadDoubleSidedImages();
+    });
+}
+
+function updateConflictWarning() {
+    const warning = document.getElementById('onlyFrontsConflictWarning');
+    if (!warning) return;
+    const onlyFrontsCheckbox = document.getElementById('onlyFrontsCheckbox');
+    const conflict = onlyFrontsCheckbox && onlyFrontsCheckbox.checked && doubleSidedFilenames.length > 0;
+    warning.classList.toggle('hidden', !conflict);
+}
+
+function loadDoubleSidedImages() {
+    return ipcRenderer.invoke('get-double-sided-images').then(files => {
+        doubleSidedFilenames = files.slice();
+        const grid = document.getElementById('doubleSidedImagesGrid');
+        grid.innerHTML = '';
+        files.forEach(f => {
+            const isOrphan = !frontFilenames.includes(f);
+            const div = document.createElement('div');
+            div.style.textAlign = 'center';
+            div.style.wordBreak = 'break-all';
+            const img = document.createElement('img');
+            img.src = `${getDoubleSidedDir()}/${f}`;
+            img.alt = f;
+            img.style.width = '100px';
+            img.style.height = '140px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '6px';
+            img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+            if (isOrphan) {
+                img.style.outline = '3px solid #f59e0b';
+                img.style.outlineOffset = '1px';
+            }
+            attachHoverPreview(img);
+            div.appendChild(img);
+            const label = document.createElement('div');
+            label.textContent = f;
+            label.style.fontSize = '0.8em';
+            label.style.marginTop = '0.5em';
+            div.appendChild(label);
+            if (isOrphan) {
+                const badge = document.createElement('div');
+                badge.textContent = 'No matching front image';
+                badge.style.fontSize = '0.7em';
+                badge.style.marginTop = '0.25em';
+                badge.style.color = '#b45309';
+                badge.style.fontWeight = '600';
+                div.appendChild(badge);
+            }
+            grid.appendChild(div);
+        });
+        updateConflictWarning();
     });
 }
 
@@ -175,12 +234,24 @@ window.addEventListener('DOMContentLoaded', () => {
             args = args.replace(/\s*--only_fronts\b/, '');
         }
         pdfArgsInput.value = args.trim();
+        updateConflictWarning();
     });
+
+    // One-time sync of the Only Fronts checkbox from the Card List workflow choice.
+    const savedOnlyFronts = sessionStorage.getItem('onlyFronts');
+    if (savedOnlyFronts !== null) {
+        onlyFrontsCheckbox.checked = (savedOnlyFronts === 'true');
+        onlyFrontsCheckbox.dispatchEvent(new Event('change'));
+    }
+
     loadImages();
     loadBackImage();
     // Listen for event-driven updates from main process
     ipcRenderer.on('front-images-changed', () => {
         loadImages();
+    });
+    ipcRenderer.on('double-sided-images-changed', () => {
+        loadDoubleSidedImages();
     });
     document.getElementById('createPdfBtn').onclick = async function() {
         const args = document.getElementById('pdfArgs').value;
@@ -205,6 +276,25 @@ window.addEventListener('DOMContentLoaded', () => {
             loadImages();
         } catch (err) {
             alert('Error clearing images:\n' + err);
+        }
+    }
+    document.getElementById('uploadDoubleSidedBtn').onclick = async function() {
+        try {
+            const result = await ipcRenderer.invoke('upload-double-sided-images');
+            if (result) {
+                loadDoubleSidedImages();
+            }
+        } catch (err) {
+            alert('Error uploading double-sided images:\n' + err);
+        }
+    }
+    document.getElementById('clearDoubleSidedBtn').onclick = async function() {
+        try {
+            const result = await ipcRenderer.invoke('clear-double-sided-images');
+            alert(result);
+            loadDoubleSidedImages();
+        } catch (err) {
+            alert('Error clearing double-sided images:\n' + err);
         }
     }
     document.getElementById('uploadBackBtn').onclick = async function() {

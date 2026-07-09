@@ -25,6 +25,23 @@
             </div>
         </section>
 
+        <!-- Double-Sided Images Section -->
+        <section class="paper-element mb-12 p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold text-primary-dark">game/double_sided folder images</h2>
+                <div class="flex gap-2">
+                    <button class="paper-button" id="uploadDoubleSidedBtn">Upload Double-Sided Image(s)</button>
+                    <button class="paper-button" id="clearDoubleSidedBtn">Clear Double-Sided Images</button>
+                </div>
+            </div>
+            <div id="onlyFrontsConflictWarning" class="hidden mb-4 p-3 rounded-lg bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm">
+                "Only Fronts" is enabled but there are double-sided images present. The PDF will fail unless you clear the double-sided images or uncheck "Only Fronts".
+            </div>
+            <div id="doubleSidedImagesGrid" class="paper-surface grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 rounded-lg p-4 max-h-[400px] overflow-y-auto">
+                <!-- Images will be dynamically added here -->
+            </div>
+        </section>
+
         <!-- Back Image Section -->
         <section class="paper-element mb-12 p-6">
             <h2 class="text-xl font-semibold text-primary-dark mb-6">game/back folder image</h2>

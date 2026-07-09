@@ -13,6 +13,7 @@ const {
   getCalibrationDir
 } = require('../shared/constants');
 let watcher = null;
+let doubleSidedWatcher = null;
 
 // Ensure all game directories exist on startup
 function ensureDirectoriesExist() {
@@ -39,6 +40,21 @@ function startFrontDirWatcher() {
   });
 }
 startFrontDirWatcher();
+
+function startDoubleSidedDirWatcher() {
+  if (doubleSidedWatcher) return;
+  const fs = require('fs');
+  const doubleSidedDir = getDoubleSidedDir();
+  doubleSidedWatcher = fs.watch(doubleSidedDir, { persistent: true }, (eventType, filename) => {
+    if (filename && /\.(png|jpe?g)$/i.test(filename)) {
+      BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('double-sided-images-changed');
+      });
+    }
+  });
+}
+startDoubleSidedDirWatcher();
+
 ipcMain.handle('clear-front-images', async () => {
   const fs = require('fs');
   const frontDir = getFrontDir();
@@ -266,4 +282,48 @@ ipcMain.handle('get-back-images', async () => {
     return [];
   }
 });
-// Add similar logic for output, decklist, double_sided as needed
+ipcMain.handle('get-double-sided-images', async () => {
+  try {
+    const files = await fs.promises.readdir(getDoubleSidedDir());
+    return files.filter(f => /\.(png|jpe?g)$/i.test(f));
+  } catch (err) {
+    return [];
+  }
+});
+
+ipcMain.handle('clear-double-sided-images', async () => {
+  const doubleSidedDir = getDoubleSidedDir();
+  try {
+    const files = await fs.promises.readdir(doubleSidedDir);
+    for (const file of files) {
+      if (/\.(png|jpe?g)$/i.test(file)) {
+        await fs.promises.unlink(path.join(doubleSidedDir, file));
+      }
+    }
+    return 'Double-sided images cleared.';
+  } catch (err) {
+    return 'Error clearing images: ' + err;
+  }
+});
+
+ipcMain.handle('upload-double-sided-images', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }]
+  });
+  if (canceled || !filePaths || filePaths.length === 0) {
+    return null;
+  }
+  const doubleSidedDir = getDoubleSidedDir();
+  try {
+    await fs.promises.mkdir(doubleSidedDir, { recursive: true });
+    for (const src of filePaths) {
+      // Preserve original filename so it can match a front image; overwrite silently on collision.
+      const destName = path.basename(src);
+      await fs.promises.copyFile(src, path.join(doubleSidedDir, destName));
+    }
+    return filePaths.length;
+  } catch (err) {
+    throw new Error('Error uploading double-sided images: ' + err);
+  }
+});
