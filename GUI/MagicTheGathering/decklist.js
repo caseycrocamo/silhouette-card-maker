@@ -180,14 +180,19 @@ window.onload = function () {
                         const frontUrl = data.card_faces[0].image_uris.png;
                         const backUrl = data.card_faces[1].image_uris.png;
                         const fileName = `${imgCount}${name}1.png`;
-                        // Write the front first; only write the back if the front succeeds.
+                        // Write the front first; only attempt the back if the front succeeds.
                         const frontResp = await fetch(frontUrl);
                         const frontBuffer = Buffer.from(await frontResp.arrayBuffer());
                         fs.writeFileSync(path.join(frontDir, fileName), frontBuffer);
-                        // Only write the double-sided back after the front write succeeds.
-                        const backResp = await fetch(backUrl);
-                        const backBuffer = Buffer.from(await backResp.arrayBuffer());
-                        fs.writeFileSync(path.join(doubleSidedDir, fileName), backBuffer);
+                        // If the back fetch/write fails, fall back to single-sided for this
+                        // card only rather than aborting the whole export.
+                        try {
+                            const backResp = await fetch(backUrl);
+                            const backBuffer = Buffer.from(await backResp.arrayBuffer());
+                            fs.writeFileSync(path.join(doubleSidedDir, fileName), backBuffer);
+                        } catch (backErr) {
+                            console.error('Failed to write double-sided back face, falling back to single-sided:', backErr);
+                        }
                     } else {
                         const imgUrl = data.image_uris?.png ?? data.card_faces?.[0]?.image_uris?.png;
                         if (!imgUrl) continue;
