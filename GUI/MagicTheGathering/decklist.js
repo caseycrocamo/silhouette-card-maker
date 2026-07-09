@@ -1,4 +1,15 @@
-const { getFrontDir } = require('../shared/constants');
+const { getFrontDir, getDoubleSidedDir } = require('../shared/constants');
+
+// Layouts that are physically double-faced (mirrors plugins/mtg/scryfall.py).
+const DOUBLE_SIDED_LAYOUTS = ['transform', 'modal_dfc'];
+
+// Sanitize a card name into a filename-safe camelCase token (shared by front/double_sided).
+function sanitizeCardName(name) {
+    let cardName = (name || '').replace(/[^a-zA-Z0-9]/g, ' ');
+    cardName = cardName.split(' ').map((w, idx) => idx === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
+    cardName = cardName.replace(/\s+/g, '');
+    return cardName;
+}
 // Unified card structure: each card contains user input + fetched data + selected set
 let cards = []; // Array of { name, qty, requestedSetCode, requestedSetNumber, cardData, selectedSetCode, selectedSetNumber }
 
@@ -73,6 +84,18 @@ window.onload = function () {
         }
     }
     
+    // Restore the workflow toggle (Front Only / Double Sided); default to double_sided.
+    const savedWorkflow = sessionStorage.getItem('cardWorkflow') || 'double_sided';
+    const workflowRadios = document.querySelectorAll('input[name="cardWorkflow"]');
+    workflowRadios.forEach(radio => {
+        radio.checked = (radio.value === savedWorkflow);
+        radio.addEventListener('change', function () {
+            if (this.checked) {
+                sessionStorage.setItem('cardWorkflow', this.value);
+            }
+        });
+    });
+
     // Save decklist when Enter is pressed in the textarea
     document.getElementById('longText').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
@@ -105,59 +128,85 @@ window.onload = function () {
         }
 
         try {
+            // Determine selected workflow (front_only vs double_sided).
+            const selectedWorkflow = document.querySelector('input[name="cardWorkflow"]:checked');
+            const workflow = selectedWorkflow ? selectedWorkflow.value : 'double_sided';
+
             // Only export if we have cards
             if (cards.length > 0) {
                 const fs = window.require ? window.require('fs') : require('fs');
                 const path = window.require ? window.require('path') : require('path');
                 const frontDir = getFrontDir();
+                const doubleSidedDir = getDoubleSidedDir();
                 if (!fs.existsSync(frontDir)) {
                     fs.mkdirSync(frontDir, { recursive: true });
                 }
-                
-                // Check if there are existing images in the front folder
-                const existingFiles = fs.readdirSync(frontDir).filter(f => f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg'));
-                if (existingFiles.length > 0) {
-                    const shouldClear = confirm(`There are ${existingFiles.length} image(s) already in the front folder. Would you like to clear them before adding new images?`);
+                if (!fs.existsSync(doubleSidedDir)) {
+                    fs.mkdirSync(doubleSidedDir, { recursive: true });
+                }
+
+                // Check if there are existing images in the front or double_sided folders
+                const existingFront = fs.readdirSync(frontDir).filter(f => f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg'));
+                const existingDouble = fs.existsSync(doubleSidedDir)
+                    ? fs.readdirSync(doubleSidedDir).filter(f => f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg'))
+                    : [];
+                if (existingFront.length > 0 || existingDouble.length > 0) {
+                    const total = existingFront.length + existingDouble.length;
+                    const shouldClear = confirm(`There are ${total} image(s) already in the front/double-sided folders. Would you like to clear them before adding new images?`);
                     if (shouldClear) {
-                        // Clear existing images
-                        for (const file of existingFiles) {
+                        for (const file of existingFront) {
                             fs.unlinkSync(path.join(frontDir, file));
+                        }
+                        for (const file of existingDouble) {
+                            fs.unlinkSync(path.join(doubleSidedDir, file));
                         }
                     }
                 }
-                
+
                 let imgCount = 1;
                 for (let i = 0; i < cards.length; i++) {
                     const data = cards[i].cardData;
                     if (data.error) continue;
-                    // Handle double-faced cards
-                    if (data.card_faces && Array.isArray(data.card_faces) && data.card_faces.length > 1) {
-                        for (let f = 0; f < data.card_faces.length; f++) {
-                            let imgUrl = data.card_faces[f].image_uris ? data.card_faces[f].image_uris.png : null;
-                            if (!imgUrl) continue;
-                            let faceName = data.card_faces[f].name.replace(/[^a-zA-Z0-9]/g, ' ');
-                            faceName = faceName.split(' ').map((w, idx) => idx === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
-                            faceName = faceName.replace(/\s+/g, '');
-                            let filename = path.join(frontDir, `${imgCount}${faceName}1.png`);
-                            const response = await fetch(imgUrl);
-                            const buffer = Buffer.from(await response.arrayBuffer());
-                            fs.writeFileSync(filename, buffer);
-                            imgCount++;
+
+                    const isDoubleSided = (workflow === 'double_sided')
+                        && DOUBLE_SIDED_LAYOUTS.includes(data.layout)
+                        && data.card_faces?.[0]?.image_uris?.png
+                        && data.card_faces?.[1]?.image_uris?.png;
+
+                    // Use the top-level card name for both faces so front/double_sided filenames match.
+                    const name = sanitizeCardName(data.name);
+
+                    if (isDoubleSided) {
+                        const frontUrl = data.card_faces[0].image_uris.png;
+                        const backUrl = data.card_faces[1].image_uris.png;
+                        const fileName = `${imgCount}${name}1.png`;
+                        // Write the front first; only attempt the back if the front succeeds.
+                        const frontResp = await fetch(frontUrl);
+                        const frontBuffer = Buffer.from(await frontResp.arrayBuffer());
+                        fs.writeFileSync(path.join(frontDir, fileName), frontBuffer);
+                        // If the back fetch/write fails, fall back to single-sided for this
+                        // card only rather than aborting the whole export.
+                        try {
+                            const backResp = await fetch(backUrl);
+                            const backBuffer = Buffer.from(await backResp.arrayBuffer());
+                            fs.writeFileSync(path.join(doubleSidedDir, fileName), backBuffer);
+                        } catch (backErr) {
+                            console.error('Failed to write double-sided back face, falling back to single-sided:', backErr);
                         }
                     } else {
-                        let imgUrl = data.image_uris ? data.image_uris.png : (data.card_faces && data.card_faces[0].image_uris ? data.card_faces[0].image_uris.png : null);
+                        const imgUrl = data.image_uris?.png ?? data.card_faces?.[0]?.image_uris?.png;
                         if (!imgUrl) continue;
-                        let cardName = data.name.replace(/[^a-zA-Z0-9]/g, ' ');
-                        cardName = cardName.split(' ').map((w, idx) => idx === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
-                        cardName = cardName.replace(/\s+/g, '');
-                        let filename = path.join(frontDir, `${imgCount}${cardName}1.png`);
+                        const fileName = `${imgCount}${name}1.png`;
                         const response = await fetch(imgUrl);
                         const buffer = Buffer.from(await response.arrayBuffer());
-                        fs.writeFileSync(filename, buffer);
-                        imgCount++;
+                        fs.writeFileSync(path.join(frontDir, fileName), buffer);
                     }
+                    imgCount++;
                 }
             }
+
+            // Persist the derived only-fronts flag for create.html.
+            sessionStorage.setItem('onlyFronts', String(workflow === 'front_only'));
 
             // Save decklist to sessionStorage before navigating
             const decklistText = document.getElementById('longText').value;

@@ -62,9 +62,28 @@
         </div>
       </section>
 
+      <!-- Workflow Toggle -->
+      <section class="paper-element p-6 mt-8 max-w-xl mx-auto">
+        <h2 class="text-xl font-semibold text-primary-dark mb-4">Printing Workflow</h2>
+        <div class="space-y-3">
+          <label class="flex items-center space-x-3 p-3 bg-surface rounded-lg hover:bg-surface/80 transition-colors cursor-pointer group">
+            <input type="radio" name="cardWorkflow" value="front_only" class="w-4 h-4 border-2 border-primary-light/30 text-primary focus:ring-2 focus:ring-primary-light checked:border-primary group-hover:border-primary transition-colors duration-200">
+            <span class="text-content group-hover:text-content-dark transition-colors duration-200">Front Only</span>
+          </label>
+          <label class="flex items-center space-x-3 p-3 bg-surface rounded-lg hover:bg-surface/80 transition-colors cursor-pointer group">
+            <input type="radio" name="cardWorkflow" value="double_sided" class="w-4 h-4 border-2 border-primary-light/30 text-primary focus:ring-2 focus:ring-primary-light checked:border-primary group-hover:border-primary transition-colors duration-200">
+            <span class="text-content group-hover:text-content-dark transition-colors duration-200">Double Sided</span>
+          </label>
+        </div>
+        <div class="mt-4 text-sm text-content-light/80 space-y-2">
+          <p><strong>Front Only</strong> — Print just the card fronts. Best for the proxy method: print onto vinyl stickers and apply them over real cards (draft chaff).</p>
+          <p><strong>Double Sided</strong> — Print true fronts and backs for double-faced cards. Best for printing directly on card stock and laminating.</p>
+        </div>
+      </section>
+
       <!-- Next Step Button -->
       <div class="mt-12 max-w-xl mx-auto">
-        <button 
+        <button
           id="nextCreatePdfBtn"
           class="paper-button w-full flex items-center justify-center gap-2"
         >
