@@ -188,37 +188,6 @@ function loadBackImage() {
     });
 }
 
-function loadBackImage() {
-    ipcRenderer.invoke('get-back-images').then(files => {
-        const preview = document.getElementById('backImagePreview');
-        preview.innerHTML = '';
-        if (files && files.length > 0) {
-            const f = files[0];
-            const img = document.createElement('img');
-            img.src = `${getBackDir()}/${f}`;
-            img.alt = f;
-            img.style.width = '150px';
-            img.style.height = '210px';
-            img.style.objectFit = 'cover';
-            img.style.borderRadius = '6px';
-            img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-            attachHoverPreview(img);
-            preview.appendChild(img);
-            const label = document.createElement('span');
-            label.textContent = f;
-            label.style.fontSize = '0.85em';
-            label.style.wordBreak = 'break-all';
-            preview.appendChild(label);
-        } else {
-            const placeholder = document.createElement('span');
-            placeholder.textContent = 'No back image selected';
-            placeholder.style.color = '#999';
-            placeholder.style.fontSize = '0.85em';
-            preview.appendChild(placeholder);
-        }
-    });
-}
-
 window.addEventListener('DOMContentLoaded', () => {
     const skip4Checkbox = document.getElementById('skip4Checkbox');
 
