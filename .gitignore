@@ -28,6 +28,8 @@ create_pdf
 create_pdf.exe
 clean_up
 offset_pdf
+pdf_worker
+pdf_worker.exe
 translated_text_boxes_to_pdf
 translated_text_boxes_to_pdf.exe
 *_to_pdf

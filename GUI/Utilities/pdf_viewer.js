@@ -18,10 +18,18 @@ function getSelectedPdfFileName() {
     return cleaned;
 }
 
+function resolvePdfPath() {
+    const params = new URLSearchParams(window.location.search);
+    const requestedPath = params.get('path');
+    if (requestedPath && requestedPath.toLowerCase().endsWith('.pdf')) {
+        return requestedPath;
+    }
+
+    return path.join(getOutputDir(), getSelectedPdfFileName());
+}
+
 function openInFileExplorer() {
-    const outputDir = getOutputDir();
-    const pdfPath = path.join(outputDir, getSelectedPdfFileName());
-    shell.showItemInFolder(pdfPath);
+    shell.showItemInFolder(resolvePdfPath());
 }
 
 function setPdfSource() {
@@ -30,9 +38,7 @@ function setPdfSource() {
         return;
     }
 
-    const outputDir = getOutputDir();
-    const pdfPath = path.join(outputDir, getSelectedPdfFileName());
-    viewerFrame.src = pathToFileURL(pdfPath).href;
+    viewerFrame.src = pathToFileURL(resolvePdfPath()).href;
 }
 
 window.addEventListener('DOMContentLoaded', setPdfSource);

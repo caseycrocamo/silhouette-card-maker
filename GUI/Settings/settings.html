@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silhouette Card Maker - Settings</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <script type="text/javascript" src="../shared/navbar.js"></script>
+    <script type="text/javascript" src="../shared/loadingOverlay.js"></script>
+    <script type="text/javascript" src="settings.js"></script>
+</head>
+<body class="min-h-screen bg-surface text-content">
+    <nav-bar></nav-bar>
+
+    <main class="container mx-auto px-4 pt-24 pb-8 max-w-6xl">
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <h1 class="text-4xl font-bold text-primary-dark mb-8">Settings</h1>
+
+        <!-- Offset Calibration Section -->
+        <section class="paper-element mb-12 p-6">
+            <h2 class="text-xl font-semibold text-primary-dark mb-6">Printer Offset Calibration</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Edit Offset Data -->
+                <div class="paper-surface rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-primary-dark mb-4">Edit Offset Data</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-content mb-1" for="editXOffset">X Offset</label>
+                            <input type="number" id="editXOffset" class="paper-input" value="0">
+                        </div>
+                        <div>
+                            <label class="block text-content mb-1" for="editYOffset">Y Offset</label>
+                            <input type="number" id="editYOffset" class="paper-input" value="0">
+                        </div>
+                        <button class="paper-button w-full" id="saveOffsetBtn">Save</button>
+                    </div>
+                </div>
+
+                <!-- Run Offset PDF -->
+                <div class="paper-surface rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-primary-dark mb-4">Run Offset PDF</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-content mb-1" for="offsetPdfPath">PDF Path</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="offsetPdfPath" class="paper-input flex-1" placeholder="game/output/game.pdf" readonly>
+                                <button type="button" class="paper-button" id="browsePdfBtn">Browse</button>
+                            </div>
+                        </div>
+                        <button class="paper-button w-full" id="runOffsetPdfBtn">Run Offset PDF</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+</body>
+</html>

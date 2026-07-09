@@ -1,5 +1,74 @@
 const { ipcRenderer } = require('electron');
-const { getFrontDir } = require('../shared/constants');
+const { getFrontDir, getBackDir } = require('../shared/constants');
+
+let hoverPreviewEl = null;
+let hoverPreviewTimeout = null;
+
+function getHoverPreviewEl() {
+    if (!hoverPreviewEl) {
+        hoverPreviewEl = document.createElement('img');
+        hoverPreviewEl.style.position = 'fixed';
+        hoverPreviewEl.style.display = 'none';
+        hoverPreviewEl.style.zIndex = '1000';
+        hoverPreviewEl.style.pointerEvents = 'none';
+        hoverPreviewEl.style.maxWidth = '400px';
+        hoverPreviewEl.style.maxHeight = '560px';
+        hoverPreviewEl.style.objectFit = 'contain';
+        hoverPreviewEl.style.borderRadius = '10px';
+        hoverPreviewEl.style.boxShadow = '0 8px 24px rgba(0,0,0,0.35)';
+        hoverPreviewEl.style.border = '2px solid white';
+        document.body.appendChild(hoverPreviewEl);
+        window.addEventListener('scroll', hideHoverPreview, true);
+    }
+    return hoverPreviewEl;
+}
+
+function hideHoverPreview() {
+    clearTimeout(hoverPreviewTimeout);
+    if (hoverPreviewEl) {
+        hoverPreviewEl.style.display = 'none';
+    }
+}
+
+function attachHoverPreview(img) {
+    let lastX = 0;
+    let lastY = 0;
+
+    const positionPreview = (preview) => {
+        const offset = 20;
+        const maxWidth = 400;
+        const maxHeight = 560;
+        let left = lastX + offset;
+        let top = lastY + offset;
+        if (left + maxWidth > window.innerWidth) {
+            left = lastX - maxWidth - offset;
+        }
+        if (top + maxHeight > window.innerHeight) {
+            top = window.innerHeight - maxHeight - offset;
+        }
+        preview.style.left = `${Math.max(0, left)}px`;
+        preview.style.top = `${Math.max(0, top)}px`;
+    };
+
+    img.addEventListener('mousemove', (e) => {
+        lastX = e.clientX;
+        lastY = e.clientY;
+    });
+
+    img.addEventListener('mouseenter', (e) => {
+        lastX = e.clientX;
+        lastY = e.clientY;
+        clearTimeout(hoverPreviewTimeout);
+        hoverPreviewTimeout = setTimeout(() => {
+            const preview = getHoverPreviewEl();
+            preview.src = img.src;
+            positionPreview(preview);
+            preview.style.display = 'block';
+        }, 1000);
+    });
+
+    img.addEventListener('mouseleave', hideHoverPreview);
+}
 
 function loadImages() {
     ipcRenderer.invoke('get-front-images').then(files => {
@@ -17,6 +86,7 @@ function loadImages() {
             img.style.objectFit = 'cover';
             img.style.borderRadius = '6px';
             img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+            attachHoverPreview(img);
             div.appendChild(img);
             const label = document.createElement('div');
             label.textContent = f;
@@ -25,6 +95,37 @@ function loadImages() {
             div.appendChild(label);
             grid.appendChild(div);
         });
+    });
+}
+
+function loadBackImage() {
+    ipcRenderer.invoke('get-back-images').then(files => {
+        const preview = document.getElementById('backImagePreview');
+        preview.innerHTML = '';
+        if (files && files.length > 0) {
+            const f = files[0];
+            const img = document.createElement('img');
+            img.src = `${getBackDir()}/${f}`;
+            img.alt = f;
+            img.style.width = '150px';
+            img.style.height = '210px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '6px';
+            img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+            attachHoverPreview(img);
+            preview.appendChild(img);
+            const label = document.createElement('span');
+            label.textContent = f;
+            label.style.fontSize = '0.85em';
+            label.style.wordBreak = 'break-all';
+            preview.appendChild(label);
+        } else {
+            const placeholder = document.createElement('span');
+            placeholder.textContent = 'No back image selected';
+            placeholder.style.color = '#999';
+            placeholder.style.fontSize = '0.85em';
+            preview.appendChild(placeholder);
+        }
     });
 }
 
@@ -45,6 +146,21 @@ window.addEventListener('DOMContentLoaded', () => {
         pdfArgsInput.value = args.trim();
     });
     const pdfArgsInput = document.getElementById('pdfArgs');
+    const loadOffsetCheckbox = document.getElementById('loadOffsetCheckbox');
+
+    loadOffsetCheckbox.addEventListener('change', function() {
+        let args = pdfArgsInput.value.trim();
+        const flag = '--load_offset';
+        if (this.checked) {
+            if (!args.includes(flag)) {
+                args = args.length ? args + ' ' + flag : flag;
+            }
+        } else {
+            // Remove the flag if present
+            args = args.replace(/\s*--load_offset\b/, '');
+        }
+        pdfArgsInput.value = args.trim();
+    });
     const onlyFrontsCheckbox = document.getElementById('onlyFrontsCheckbox');
 
     onlyFrontsCheckbox.addEventListener('change', function() {
@@ -61,6 +177,7 @@ window.addEventListener('DOMContentLoaded', () => {
         pdfArgsInput.value = args.trim();
     });
     loadImages();
+    loadBackImage();
     // Listen for event-driven updates from main process
     ipcRenderer.on('front-images-changed', () => {
         loadImages();
@@ -88,6 +205,25 @@ window.addEventListener('DOMContentLoaded', () => {
             loadImages();
         } catch (err) {
             alert('Error clearing images:\n' + err);
+        }
+    }
+    document.getElementById('uploadBackBtn').onclick = async function() {
+        try {
+            const result = await ipcRenderer.invoke('select-back-image');
+            if (result) {
+                loadBackImage();
+            }
+        } catch (err) {
+            alert('Error uploading back image:\n' + err);
+        }
+    }
+    document.getElementById('clearBackBtn').onclick = async function() {
+        try {
+            const result = await ipcRenderer.invoke('clear-back-image');
+            alert(result);
+            loadBackImage();
+        } catch (err) {
+            alert('Error clearing back image:\n' + err);
         }
     }
 });
