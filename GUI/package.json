@@ -10,7 +10,8 @@
     "watch:css": "tailwindcss -i ./styles/tailwind.css -o ./styles/main.css --watch",
     "dev": "npm run build:css && npm run start",
     "dist:win": "electron-builder --win --x64",
-    "dist:mac": "electron-builder --mac --x64"
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
@@ -23,6 +24,7 @@
     "electron-builder": "^24.6.0"
   },
   "build": {
+    "beforePack": "./verifyBinaries.js",
     "appId": "com.silhouette.cardmaker",
     "productName": "Silhouette Card Maker",
     "files": [
@@ -34,6 +36,11 @@
         "from": "bin",
         "to": "bin",
         "filter": ["**/*"]
+      },
+      {
+        "from": "../calibration",
+        "to": "calibration",
+        "filter": ["*.pdf"]
       }
     ],
     "directories": {
@@ -48,6 +55,10 @@
       "target": ["nsis", "zip"],
       "sign": null,
       "signingHashAlgorithms": []
+    },
+    "linux": {
+      "target": ["AppImage", "tar.gz"],
+      "category": "Utility"
     }
   }
 }

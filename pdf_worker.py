@@ -77,6 +77,11 @@ def dispatch(req):
 
 
 def main():
+    # Node writes UTF-8 JSON to the pipe. Windows otherwise decodes stdin with
+    # the local code page, corrupting paths and card names containing accents.
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8")
+
     # Signal readiness only after the expensive imports above have completed.
     print(json.dumps({"ready": True}), flush=True)
 

@@ -81,8 +81,8 @@ Once Python and Node.js are installed, continue with the project setup steps bel
    python -m pip install -r requirements.txt
    ```
 
-3. **Build the Python executable**
-   (Optional, for standalone PDF generation)
+3. **Build the Python executables**
+   Required for PDF generation in the GUI, including packaged Windows builds.
 
    **Windows:**
    ```powershell
@@ -94,9 +94,29 @@ Once Python and Node.js are installed, continue with the project setup steps bel
    ./build_entrypoints.sh
    ```
 
-   This will create the PDF generator executable in the project root:
-   - Windows: `create_pdf.exe`
-   - macOS/Linux: `create_pdf`
+   This creates the top-level Python entrypoint executables in the project root,
+   including `pdf_worker.exe` on Windows (`pdf_worker` on macOS/Linux). The GUI
+   uses this persistent worker for both PDF creation and offsets.
+
+   From the project root, stage the executables for Electron:
+   ```powershell
+   npm run copy:entrypoints
+   ```
+
+   To build the executables, stage them, and package the app for your current OS:
+   ```powershell
+   npm run build-all
+   ```
+   Releases are written to `GUI/dist`: installer/ZIP on Windows, DMG/ZIP on
+   macOS, and AppImage/tar.gz on Linux. Build on the target OS and architecture;
+   PyInstaller executables are native binaries and cannot be reused across OSes.
+   macOS and Linux builds use the host architecture. Packaging checks that all
+   required executables exist in `GUI/bin` before creating a release.
+
+   `npm test` checks entrypoint discovery and paths for all three platforms.
+   After building the worker, `python -m unittest discover -s tests` verifies
+   PDF creation, offsets, Unicode paths, and worker reuse. The PDF worker
+   compatibility workflow runs these checks on Windows, macOS, and Linux.
 
    The build script will:
    1. Install/upgrade pip
@@ -121,7 +141,10 @@ The GUI will open in a new window. You can generate PDFs, view images, and use a
 
 ## Troubleshooting
 - If you see errors about missing Python modules, ensure you installed all dependencies from `requirements.txt`.
-- If you see errors about missing `create_pdf.exe`, run the build script as shown above.
+- If PDF creation or offsets report a missing `pdf_worker.exe`, rebuild and stage
+  the Python executables as shown above, then rebuild the installer. Older
+  Windows builds could skip this worker because their entrypoint discovery
+  only recognized single-quoted `__main__` guards.
 - For Windows, use PowerShell or Command Prompt. For Mac/Linux, adapt commands as needed.
 
 ---

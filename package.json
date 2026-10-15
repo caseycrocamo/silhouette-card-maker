@@ -3,10 +3,11 @@
   "private": true,
   "scripts": {
   "build:entrypoints": "node -e \"process.platform === 'win32' ? require('child_process').execSync('build_entrypoints.bat', {stdio: 'inherit'}) : require('child_process').execSync('./build_entrypoints.sh', {stdio: 'inherit'})\"",
-  "copy:entrypoints": "node -e \"const fs=require('fs'),path=require('path');const binDir=path.join('GUI','bin');fs.mkdirSync(binDir,{recursive:true});const isEntrypoint=f=>/if\\s+__name__\\s*==\\s*['\\\"]__main__['\\\"]\\s*:/.test(fs.readFileSync(f,'utf8'));const scripts=fs.readdirSync('.').filter(f=>f.endsWith('.py')&&isEntrypoint(f));const files=scripts.flatMap(s=>{const base=s.slice(0,-3);return [base,base+'.exe'];});files.forEach(f=>{if(fs.existsSync(f)){fs.copyFileSync(f,path.join(binDir,f));console.log('Copied',f);}})\"",
+  "copy:entrypoints": "node check_and_build_entrypoints.js --copy",
+  "test": "node --test tests/entrypoints.test.js tests/paths.test.js",
   "check:entrypoints": "node check_and_build_entrypoints.js",
   "build:css": "cd GUI && npm run build:css",
-  "build:gui": "cd GUI && npm run dist:mac && npm run dist:win",
+  "build:gui": "node build_gui.js",
   "build-all": "npm run build:entrypoints && npm run copy:entrypoints && npm run build:css && npm run build:gui",
   "dev": "npm run check:entrypoints && cd GUI && npm run dev"
   }

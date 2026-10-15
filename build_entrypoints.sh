@@ -3,6 +3,7 @@
 # Ensure you run this from the project root (where requirements.txt is)
 
 set -e
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 echo "Checking Python version..."
 python3 --version
@@ -45,11 +46,12 @@ python -m pip install pyinstaller --no-warn-script-location
 echo ""
 echo "Discovering build targets..."
 TARGET_SCRIPTS=()
+TARGET_LIST=$(node check_and_build_entrypoints.js --list-targets)
 while IFS= read -r script; do
-    if grep -Eq "if[[:space:]]+__name__[[:space:]]*==[[:space:]]*['\"]__main__['\"][[:space:]]*:" "$script"; then
+    if [ -n "$script" ]; then
         TARGET_SCRIPTS+=("$script")
     fi
-done < <(find . -maxdepth 1 -type f -name "*.py" -print | sed 's|^\./||' | sort)
+done <<< "$TARGET_LIST"
 
 if [ ${#TARGET_SCRIPTS[@]} -eq 0 ]; then
     echo "No top-level Python entrypoint scripts found to build."
@@ -60,7 +62,7 @@ fi
 for script in "${TARGET_SCRIPTS[@]}"; do
     echo ""
     echo "Building ${script%.py} executable with PyInstaller..."
-    python -m PyInstaller --onefile --add-data "assets:assets" "$script" --distpath .
+    python -m PyInstaller --noconfirm --onefile --add-data "assets:assets" "$script" --distpath .
 done
 
 echo ""

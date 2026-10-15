@@ -71,6 +71,7 @@ function startPdfWorker() {
   try {
     child = spawn(exePath, [], {
       shell: false,
+      windowsHide: true,
       cwd,
       env: {
         ...process.env,

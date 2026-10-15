@@ -1,0 +1,54 @@
+name: PDF worker compatibility
+
+on:
+  push:
+    paths:
+      - '*.py'
+      - '*.js'
+      - 'build_entrypoints.*'
+      - 'requirements.txt'
+      - 'package.json'
+      - 'GUI/**'
+      - 'assets/**'
+      - 'tests/**'
+      - '.github/workflows/pdf-worker.yml'
+  pull_request:
+    paths:
+      - '*.py'
+      - '*.js'
+      - 'build_entrypoints.*'
+      - 'requirements.txt'
+      - 'package.json'
+      - 'GUI/**'
+      - 'assets/**'
+      - 'tests/**'
+      - '.github/workflows/pdf-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check entrypoints and packaged paths
+        run: npm test
+      - name: Install worker build dependencies
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: Freeze the PDF worker
+        run: python -m PyInstaller --noconfirm --onefile --add-data "assets:assets" --distpath . pdf_worker.py
+      - name: Create, offset, and reuse PDFs with Unicode paths
+        run: python -m unittest discover -s tests -p "test_*.py"

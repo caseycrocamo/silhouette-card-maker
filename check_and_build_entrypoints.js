@@ -3,10 +3,11 @@ const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 
-const HASH_FILE = '.python_build_hash';
+const PROJECT_ROOT = __dirname;
+const HASH_FILE = path.join(PROJECT_ROOT, '.python_build_hash');
 
-function getPythonFiles() {
-  return fs.readdirSync('.')
+function getPythonFiles(projectRoot = PROJECT_ROOT) {
+  return fs.readdirSync(projectRoot)
     .filter(file => file.endsWith('.py'))
     .sort();
 }
@@ -20,8 +21,8 @@ function hasMainEntrypoint(filePath) {
   }
 }
 
-function getBuildTargets() {
-  return getPythonFiles().filter(hasMainEntrypoint);
+function getBuildTargets(projectRoot = PROJECT_ROOT) {
+  return getPythonFiles(projectRoot).filter(file => hasMainEntrypoint(path.join(projectRoot, file)));
 }
 
 function executableNameFromScript(scriptName, windows) {
@@ -39,8 +40,10 @@ function getFileHash(filePath) {
 }
 
 function getCurrentHash() {
-  const hashes = getPythonFiles().map(file => {
-    const hash = getFileHash(file);
+  const buildInputs = [...getPythonFiles(), 'requirements.txt', 'build_entrypoints.bat',
+    'build_entrypoints.sh', 'check_and_build_entrypoints.js'];
+  const hashes = buildInputs.map(file => {
+    const hash = getFileHash(path.join(PROJECT_ROOT, file));
     return `${file}:${hash}`;
   }).join('|');
   return crypto.createHash('md5').update(hashes).digest('hex');
@@ -58,6 +61,29 @@ function saveHash(hash) {
   fs.writeFileSync(HASH_FILE, hash);
 }
 
+function verifyBinaries({ platform = process.platform, binDir = path.join(PROJECT_ROOT, 'GUI', 'bin') } = {}) {
+  const missing = getBuildTargets()
+    .map(script => executableNameFromScript(script, platform === 'win32'))
+    .filter(file => !fs.existsSync(path.join(binDir, file)));
+  if (missing.length) {
+    throw new Error(`Missing Python executables in ${binDir}: ${missing.join(', ')}. ` +
+      'Run npm run build:entrypoints && npm run copy:entrypoints from the project root before packaging.');
+  }
+}
+
+function copyEntrypoints() {
+  // Validate all sources before copying so a failed build cannot silently stage
+  // an incomplete set of executables.
+  verifyBinaries({ binDir: PROJECT_ROOT });
+  const binDir = path.join(PROJECT_ROOT, 'GUI', 'bin');
+  fs.mkdirSync(binDir, { recursive: true });
+  for (const script of getBuildTargets()) {
+    const file = executableNameFromScript(script, process.platform === 'win32');
+    fs.copyFileSync(path.join(PROJECT_ROOT, file), path.join(binDir, file));
+    console.log(`Copied ${file} to GUI/bin/`);
+  }
+}
+
 function buildAndCopy() {
   console.log('Python entrypoint files changed. Building entrypoint executables...');
   
@@ -65,29 +91,19 @@ function buildAndCopy() {
     ? 'build_entrypoints.bat' 
     : './build_entrypoints.sh';
   
-  execSync(buildCmd, { stdio: 'inherit' });
-  
-  // Copy files
-  const binDir = path.join('GUI', 'bin');
-  fs.mkdirSync(binDir, { recursive: true });
-
-  const targetScripts = getBuildTargets();
-  const targetFiles = targetScripts.flatMap(script => {
-    const baseName = path.basename(script, '.py');
-    return [baseName, `${baseName}.exe`];
-  });
-
-  targetFiles.forEach(file => {
-    try {
-      fs.copyFileSync(file, path.join(binDir, file));
-      console.log(`Copied ${file} to GUI/bin/`);
-    } catch (e) {
-      // File might not exist (e.g., .exe on Mac, no extension on Windows)
-    }
-  });
+  execSync(buildCmd, { stdio: 'inherit', cwd: PROJECT_ROOT });
+  copyEntrypoints();
 }
 
 function main() {
+  if (process.argv[2] === '--list-targets') {
+    console.log(getBuildTargets().join('\n'));
+    return;
+  }
+  if (process.argv[2] === '--copy') {
+    copyEntrypoints();
+    return;
+  }
   const targetScripts = getBuildTargets();
   if (targetScripts.length === 0) {
     console.log('No top-level Python entrypoint scripts found to build.');
@@ -99,7 +115,7 @@ function main() {
   
   // Check if executables exist
   const exeNames = targetScripts.map(script => executableNameFromScript(script, process.platform === 'win32'));
-  const exesExist = exeNames.every(file => fs.existsSync(file));
+  const exesExist = exeNames.every(file => fs.existsSync(path.join(PROJECT_ROOT, file)));
   
   if (!exesExist) {
     console.log('One or more executables not found. Building...');
@@ -111,7 +127,19 @@ function main() {
   } else {
     console.log('Python files unchanged. Skipping build.');
     console.log('Using existing Python executables.');
+    // GUI/bin may have been removed or contain an older copy, even if the
+    // executables in the project root are current.
+    copyEntrypoints();
   }
 }
 
-main();
+module.exports = { getBuildTargets, executableNameFromScript, verifyBinaries };
+
+if (require.main === module) {
+  try {
+    main();
+  } catch (err) {
+    console.error(err.message);
+    process.exitCode = 1;
+  }
+}

@@ -12,17 +12,15 @@ const CALIBRATION_DIR = path.join(__dirname, '../../calibration');
 
 
 function getUserDataDir(subdir) {
-    if (process.versions.electron && (process.defaultApp === false || process.env.APPIMAGE || process.env.PORTABLE_EXECUTABLE_DIR)) {
-        try {
-            const electron = require('electron');
-            const userData = electron.app ? electron.app.getPath('userData') : electron.remote.app.getPath('userData');
-            return require('path').join(userData, subdir);
-        } catch (e) {
-            // fallback to local
-            return null;
-        }
-    }
-    return null;
+    if (!process.versions.electron) return null;
+
+    const { app, ipcRenderer } = require('electron');
+    // defaultApp is undefined in packaged apps, not false. The renderer must
+    // ask the main process because Electron no longer provides electron.remote.
+    const userData = app
+        ? (app.isPackaged ? app.getPath('userData') : null)
+        : ipcRenderer.sendSync('get-user-data-dir');
+    return userData ? path.join(userData, subdir) : null;
 }
 
 function getFrontDir() {
@@ -44,7 +42,9 @@ function getDataDir() {
     return getUserDataDir('data') || DATA_DIR;
 }
 function getCalibrationDir() {
-    return CALIBRATION_DIR;
+    return getUserDataDir('data')
+        ? path.join(process.resourcesPath, 'calibration')
+        : CALIBRATION_DIR;
 }
 
 module.exports = {

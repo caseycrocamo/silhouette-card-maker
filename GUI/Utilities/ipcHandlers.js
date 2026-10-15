@@ -1,4 +1,4 @@
-const { BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -14,6 +14,11 @@ const {
 } = require('../shared/constants');
 let watcher = null;
 let doubleSidedWatcher = null;
+
+// Shared paths must agree in the main process and Node-enabled renderers.
+ipcMain.on('get-user-data-dir', event => {
+  event.returnValue = app.isPackaged ? app.getPath('userData') : null;
+});
 
 // Ensure all game directories exist on startup
 function ensureDirectoriesExist() {
