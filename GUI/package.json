@@ -11,17 +11,20 @@
     "dev": "npm run build:css && npm run start",
     "dist:win": "electron-builder --win --x64",
     "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux"
+    "dist:linux": "electron-builder --linux",
+    "verify:release": "node ../scripts/verify-release.js",
+    "test:release": "node --test ../tests/release.test.js"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
     "autoprefixer": "^10.4.16",
     "electron": "^27.0.0",
+    "electron-builder": "^24.6.0",
+    "js-yaml": "4.1.1",
     "postcss": "^8.4.31",
     "postcss-import": "^16.1.1",
     "postcss-nesting": "^13.0.2",
-    "tailwindcss": "^3.3.3",
-    "electron-builder": "^24.6.0"
+    "tailwindcss": "^3.3.3"
   },
   "build": {
     "beforePack": "./verifyBinaries.js",
@@ -35,30 +38,55 @@
       {
         "from": "bin",
         "to": "bin",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../calibration",
         "to": "calibration",
-        "filter": ["*.pdf"]
+        "filter": [
+          "*.pdf"
+        ]
       }
     ],
     "directories": {
       "buildResources": "assets"
     },
+    "publish": {
+      "provider": "github",
+      "owner": "caseycrocamo",
+      "repo": "silhouette-card-maker",
+      "releaseType": "release",
+      "timeout": 20000
+    },
+    "artifactName": "Silhouette-Card-Maker-${version}-${os}-${arch}.${ext}",
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "identity": null,
       "hardenedRuntime": false
     },
     "win": {
-      "target": ["nsis", "zip"],
+      "target": [
+        "nsis",
+        "zip"
+      ],
       "sign": null,
       "signingHashAlgorithms": []
     },
     "linux": {
-      "target": ["AppImage", "tar.gz"],
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
       "category": "Utility"
     }
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9",
+    "semver": "7.7.3"
   }
 }

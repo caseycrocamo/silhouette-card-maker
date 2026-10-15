@@ -240,6 +240,31 @@ function stopPdfWorker() {
 
 // --- Request queue --------------------------------------------------------
 
+// Only called after the main-process job gate has drained. Normal app shutdown
+// keeps the existing synchronous entrypoint; update installation waits for exit.
+function stopPdfWorkerForUpdate() {
+  if (inFlight || queue.length) return Promise.reject(new Error('PDF work is still running.'));
+  const child = worker;
+  if (!child) {
+    stopPdfWorker();
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      child.removeListener('exit', exited);
+      reject(new Error('The PDF worker did not stop. Try installing again.'));
+    }, STOP_GRACE_MS + 3000);
+    function exited() {
+      clearTimeout(timeout);
+      resolve();
+    }
+    // stopPdfWorker removes old listeners, so attach this after that call.
+    stopPdfWorker();
+    child.once('exit', exited);
+    if (child.exitCode !== null || child.signalCode !== null) exited();
+  });
+}
+
 function sendRequest(req) {
   return new Promise((resolve, reject) => {
     if (fatalError) {
@@ -298,6 +323,7 @@ async function runOffsetPdf({ pdfPath, xOffset, yOffset, save } = {}) {
 module.exports = {
   startPdfWorker,
   stopPdfWorker,
+  stopPdfWorkerForUpdate,
   runCreatePdf,
   runOffsetPdf
 };

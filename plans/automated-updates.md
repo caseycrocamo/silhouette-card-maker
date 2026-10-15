@@ -30,6 +30,27 @@ Packaged images, decklists, outputs, and calibration data already resolve under
 Electron's user-data directory through `GUI/shared/constants.js`. Preserve the
 existing application identity and these paths across upgrades.
 
+## File responsibilities
+
+Implementation is split into the following file groups, with separate Luna
+agents responsible for the service, renderer, and release pipeline. The main
+agent integrates application lifecycle and job safety.
+
+| Files | Responsibility |
+| --- | --- |
+| `GUI/Utilities/updateService.js` | Scheduling, preferences, update state, download consent, and installation recovery |
+| `GUI/Utilities/releaseProvider.js` | Stable GitHub release discovery, version and architecture selection, and bounded requests |
+| `GUI/Settings/settings.html`, `settings.js` | Update status, preferences, manual checks, and update actions |
+| `GUI/shared/updateControls.js`, `navbar.js` | Shared renderer subscription and update banner across pages |
+| `GUI/Utilities/jobActivity.js` | Block new work and drain active jobs before a restart |
+| `GUI/Utilities/updateIpc.js` | Validate application callers and broadcast update state |
+| `GUI/Utilities/ipcHandlers.js`, `pdfWorkerClient.js`, `GUI/main.js` | Track PDF work, stop the worker safely, confirm restart, and connect the service |
+| `GUI/package.json`, `package-lock.json` | Runtime dependencies, explicit release source, and consistent artifact names |
+| `.github/workflows/release.yml`, `scripts/verify-release.js` | Native builds, complete artifact verification, and tag-triggered publication |
+| `.github/workflows/pdf-worker.yml`, `package.json` | Install test dependencies and run the expanded compatibility checks |
+| `tests/*update*.js`, `tests/release*.test.js`, `tests/jobActivity.test.js`, `tests/pdfWorkerShutdown.test.js`, `tests/*smoke.cjs` | Service, UI, IPC, restart, release, and real Electron smoke coverage |
+| `GUI/README.md` | Update controls, supported packages, manual bootstrap, and release validation |
+
 ## 1. Release and package foundation
 
 Add `electron-updater` as a runtime dependency. Select and lock a compatible

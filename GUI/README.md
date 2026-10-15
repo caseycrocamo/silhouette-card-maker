@@ -147,6 +147,71 @@ The GUI will open in a new window. You can generate PDFs, view images, and use a
   only recognized single-quoted `__main__` guards.
 - For Windows, use PowerShell or Command Prompt. For Mac/Linux, adapt commands as needed.
 
+## Application updates and releases
+
+The supported release targets are Windows x64 NSIS installer and ZIP, macOS x64
+and arm64 DMG and ZIP, and Linux x64 AppImage and tar.gz. Builds run on the
+matching operating system and architecture because the bundled Python tools are
+native executables. macOS packages are currently unsigned; updates on macOS are
+installed manually from the release page. Windows ZIP and Linux tar.gz builds
+also require manual installation. In-app installation is intended for Windows
+NSIS and Linux AppImage packages.
+
+Earlier versions do not contain the update service. Users upgrading from one of
+those versions must download and install the first updater-enabled release
+manually. Later releases can be discovered by the app. Automatic checks are
+enabled by default. Settings shows the installed version, last successful check,
+automatic-check toggle, manual **Check for updates** button, and current status.
+The first automatic check runs 12 seconds after launch, followed by checks every
+24 hours. **Later** hides a version's notice for 24 hours; the update remains
+available in Settings. Downloads and **Restart and install** always require the
+user to choose them.
+The release feed is explicitly configured for
+[`caseycrocamo/silhouette-card-maker`](https://github.com/caseycrocamo/silhouette-card-maker).
+Application identity and Electron user-data location must remain stable so
+images, decklists, calibration, offsets, and PDFs stay in the user's data area.
+
+### Building and checking a release
+
+Set `GUI/package.json`'s version and push the matching `v<version>` tag, such as
+`v1.2.0`. The release workflow rejects a tag that does not match that package
+version. It builds and tests every supported target, verifies the generated
+metadata, hashes, blockmaps, and target artifacts, uploads the full set to a
+draft GitHub release, and publishes only after verification succeeds. CI uses
+the repository's `GITHUB_TOKEN`; public clients need no embedded token. A manual
+workflow dispatch runs the builds and checks only and does not create or publish
+a release.
+
+For a local build, install the GUI dependencies with `npm ci`, build the CSS,
+build and stage native Python entrypoints from the repository root, then run an
+appropriate command from `GUI` on the matching platform, such as
+`npx electron-builder --win --x64 --publish never`. Use `--mac` or `--linux` for
+those targets, and `--arm64` for Apple silicon. Use the release verifier against
+the resulting `GUI/dist` folder, providing the package version and platform
+list. Never reuse Python binaries built for a different OS or architecture.
+
+Release artifacts are unsigned today, so checksum validation establishes file
+integrity but does not verify publisher identity. Apple Developer ID signing
+and notarization are not configured. Before announcing the first updater-enabled
+release, validate a real version N-to-N+1 installation on Windows NSIS and
+Linux AppImage using an isolated test feed. The CI artifact checks are not a
+substitute for that packaged upgrade test. Also confirm ordinary quit, active
+PDF work, checksum failure, download failure, and data preservation on those
+targets; test the manual replacement flow on macOS and archive distributions.
+
+On Windows, after building the application, run the Electron UI/IPC smoke and
+the real updater download smoke from the repository root with:
+
+```powershell
+node GUI/node_modules/electron/cli.js tests/update-ui-smoke.cjs
+node GUI/node_modules/electron/cli.js tests/update-download-smoke.cjs
+```
+
+The download smoke reads the installer named by `GUI/dist/latest.yml`, uses an
+isolated loopback feed and cache, checks the real updater's SHA-512 validation,
+and never launches the installer. The manual-flow and full N-to-N+1 install
+checks remain separate release qualification steps.
+
 ---
 
 For more help, see the main project README or contact the project maintainer.

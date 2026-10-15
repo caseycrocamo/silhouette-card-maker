@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { runCreatePdf, runOffsetPdf } = require('./pdfWorkerClient');
+const { jobActivity } = require('./jobActivity');
 const {
   getFrontDir,
   getBackDir,
@@ -131,7 +132,7 @@ ipcMain.handle('clear-back-image', async () => {
   }
 });
 
-ipcMain.handle('run-create-pdf', async (event, argsString) => {
+ipcMain.handle('run-create-pdf', async (event, argsString) => jobActivity.run(async () => {
   // Split argsString into array, respecting quotes
   const args = argsString.match(/(?:[^"\s]+|"[^"]*")+/g) || [];
   const resp = await runCreatePdf(args);
@@ -139,7 +140,7 @@ ipcMain.handle('run-create-pdf', async (event, argsString) => {
     return resp.log;
   }
   throw new Error(resp.error || 'Exited with error');
-});
+}));
 
 ipcMain.handle('read-offset-data', async () => {
   const offsetPath = path.join(getDataDir(), 'offset_data.json');
@@ -167,15 +168,15 @@ ipcMain.handle('save-offset-data', async (event, { x_offset, y_offset } = {}) =>
   return data;
 });
 
-ipcMain.handle('run-offset-pdf', async (event, { pdfPath, xOffset, yOffset, save } = {}) => {
+ipcMain.handle('run-offset-pdf', async (event, { pdfPath, xOffset, yOffset, save } = {}) => jobActivity.run(async () => {
   const resp = await runOffsetPdf({ pdfPath, xOffset, yOffset, save });
   if (resp.ok) {
     return resp.log; // must still contain "Offset PDF: <path>" on success
   }
   throw new Error(resp.error || 'Exited with error');
-});
+}));
 
-ipcMain.handle('run-md-to-pdf', async (event, options = {}) => {
+ipcMain.handle('run-md-to-pdf', async (event, options = {}) => jobActivity.run(async () => {
   const markdownText = typeof options.markdownText === 'string' ? options.markdownText : '';
   const paperSize = options.paperSize || 'letter';
   const ppi = options.ppi || 300;
@@ -271,7 +272,7 @@ ipcMain.handle('run-md-to-pdf', async (event, options = {}) => {
       }
     });
   });
-});
+}));
 
 ipcMain.handle('get-front-images', async () => {
   try {

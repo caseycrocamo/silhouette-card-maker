@@ -1,3 +1,7 @@
+(() => {
+const path = require('path');
+const updateControls = require(path.join(__dirname, '../shared/updateControls.js'));
+
 class Navbar extends HTMLElement {
     constructor() {
         super();
@@ -19,6 +23,92 @@ class Navbar extends HTMLElement {
         this.updateActiveState();
         // Listen for navigation events
         window.addEventListener('popstate', () => this.updateActiveState());
+        this.initializeUpdateBanner();
+    }
+
+    initializeUpdateBanner() {
+        if (this._unsubscribeUpdates) return;
+        let banner = document.getElementById('sharedUpdateBanner');
+        if (!banner) {
+            banner = document.createElement('section');
+            banner.id = 'sharedUpdateBanner';
+            banner.className = 'fixed top-20 right-4 z-20 hidden max-w-xl paper-element p-4 shadow-lg overflow-y-auto';
+            banner.style.maxHeight = 'calc(100vh - 6rem)';
+            banner.setAttribute('aria-live', 'polite');
+            banner.setAttribute('aria-label', 'Application update');
+            document.body.appendChild(banner);
+        }
+        this._unsubscribeUpdates = updateControls.subscribe(state => this.renderUpdateBanner(banner, state));
+        updateControls.refresh();
+    }
+
+    renderUpdateBanner(banner, state) {
+        banner.replaceChildren();
+        if (!state || !state.notificationVisible || !['available', 'downloading', 'ready-to-install', 'error'].includes(state.status)) {
+            banner.classList.add('hidden');
+            return;
+        }
+        banner.classList.remove('hidden');
+        const heading = document.createElement('h2');
+        heading.className = 'font-semibold text-primary-dark mb-1';
+        heading.textContent = state.status === 'available' ? `Version ${state.availableVersion} is available` :
+            state.status === 'downloading' ? 'Downloading update' :
+            state.status === 'ready-to-install' ? 'Update is ready to install' : 'Update could not be completed';
+        banner.appendChild(heading);
+        const details = document.createElement('p');
+        details.className = 'text-sm mb-3 whitespace-pre-wrap';
+        details.id = 'sharedUpdateBannerNotes';
+        details.style.maxHeight = '6rem';
+        details.style.overflowY = 'auto';
+        details.textContent = state.status === 'downloading' ? `${Math.round(state.progress || 0)}% downloaded` :
+            state.status === 'ready-to-install' ? `Version ${state.availableVersion} is ready.` :
+            state.status === 'error' ? (state.error || 'Try again or open the release page.') :
+            `${state.canInstall ? '' : 'This update must be installed outside the app. Open the release page, download the installer, and quit before replacing the app.\n\n'}${state.releaseNotes || 'A newer version is ready to download.'}`;
+        banner.appendChild(details);
+        if (state.status === 'downloading') {
+            const progress = document.createElement('progress');
+            progress.className = 'w-full mb-3';
+            progress.max = 100;
+            progress.value = Number(state.progress) || 0;
+            progress.setAttribute('aria-label', 'Update download progress');
+            banner.appendChild(progress);
+        }
+        const actions = document.createElement('div');
+        actions.className = 'flex flex-wrap gap-2';
+        const addAction = (label, action, primary = false) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = primary ? 'paper-button py-2 px-3' : 'paper-button py-2 px-3';
+            button.textContent = label;
+            button.addEventListener('click', async () => {
+                button.disabled = true;
+                try { await action(); } catch (error) {
+                    console.error('Update action failed', error);
+                    let message = banner.querySelector('[role="alert"]');
+                    if (!message) {
+                        message = document.createElement('p');
+                        message.setAttribute('role', 'alert');
+                        message.className = 'text-sm text-red-800 whitespace-pre-wrap mb-2';
+                        banner.insertBefore(message, actions);
+                    }
+                    message.textContent = error.message || String(error);
+                }
+                finally { button.disabled = false; }
+            });
+            actions.appendChild(button);
+        };
+        if (state.status === 'available') {
+            addAction(state.canInstall ? 'Download update' : 'Open release page', state.canInstall ? updateControls.download : updateControls.openRelease, true);
+        } else if (state.status === 'downloading') {
+            addAction('Cancel download', updateControls.cancelDownload);
+        } else if (state.status === 'ready-to-install') {
+            addAction('Restart and install', updateControls.install, true);
+        } else if (state.status === 'error') {
+            addAction('Try again', updateControls.check, true);
+            addAction('Open release page', updateControls.openRelease);
+        }
+        if (state.status !== 'downloading') addAction('Later', updateControls.dismiss);
+        banner.appendChild(actions);
     }
 
     updateActiveState() {
@@ -84,8 +174,9 @@ class Navbar extends HTMLElement {
                     <div class="${labelClasses}">${label}</div>
                 </div>
             </a>
-        `;r();
+        `;
         }
 }
 
 customElements.define('nav-bar', Navbar);
+})();
