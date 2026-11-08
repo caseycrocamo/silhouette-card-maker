@@ -23,7 +23,10 @@ def parse_deck_helper(
 
             name, card_code, quantity = extract_card_data(line)
 
-            print(f'Index: {index}, quantity: {quantity}, card code: {card_code}, name: {name}')
+            parts = [f'Index: {index}', f'quantity: {quantity}']
+            if card_code: parts.append(f'card code: {card_code}')
+            if name: parts.append(f'name: {name}')
+            print(', '.join(parts))
             try:
                 handle_card(index, card_code, quantity)
             except Exception as e:
@@ -135,12 +138,12 @@ def parse_untap(deck_text: str, handle_card: Callable):
     parse_deck_helper(deck_text, handle_card, split_untap_deck, is_untap_line, extract_untap_card_data)
 
 class DeckFormat(str, Enum):
-    TTS         = 'tts'
-    DIGIMONCARDIO = 'digimoncardio'
-    DIGIMONCARDDEV = 'digimoncarddev'
     DIGIMONCARDAPP = 'digimoncardapp'
+    DIGIMONCARDDEV = 'digimoncarddev'
+    DIGIMONCARDIO = 'digimoncardio'
     DIGIMONMETA = 'digimonmeta'
-    UNTAP       = 'untap'
+    TTS = 'tts'
+    UNTAP = 'untap'
 
 def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable):
     if format == DeckFormat.TTS:
@@ -157,6 +160,3 @@ def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable):
         parse_untap(deck_text, handle_card)
     else:
         raise ValueError('Unrecognized deck format.')
-
-if __name__ == '__main__':
-    parse_deck()

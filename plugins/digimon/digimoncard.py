@@ -1,14 +1,18 @@
 from os import path
-from requests import Response, get
+from requests import Response, Session
 from time import sleep
+
+session = Session()
 
 CARD_ART_URL_TEMPLATE = 'https://world.digimoncard.com/images/cardlist/card/{card_number}.png'
 
 def request_digimon(query: str) -> Response:
-    r = get(query, headers = {'user-agent': 'silhouette-card-maker/0.1', 'accept': '*/*'})
+    r = session.get(query, headers = {'user-agent': 'silhouette-card-maker/0.1', 'accept': '*/*'})
 
+    # Check for 2XX response code
     r.raise_for_status()
-    sleep(0.15)
+
+    sleep(0.075)
 
     return r
 

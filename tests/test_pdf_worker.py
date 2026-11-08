@@ -15,7 +15,10 @@ import pypdfium2 as pdfium
 class FrozenWorkerTest(unittest.TestCase):
     def test_create_offset_and_reuse_with_unicode_paths(self):
         root = Path(__file__).resolve().parents[1]
-        binary = root / ("pdf_worker.exe" if sys.platform == "win32" else "pdf_worker")
+        binary = Path(os.environ.get(
+            "CARD_MAKER_PDF_WORKER",
+            root / ("pdf_worker.exe" if sys.platform == "win32" else "pdf_worker"),
+        ))
         with tempfile.TemporaryDirectory(prefix="Card Maker é 一 ") as temp:
             work = Path(temp)
             env = dict(os.environ, PYTHONIOENCODING="cp1252")
@@ -28,8 +31,8 @@ class FrozenWorkerTest(unittest.TestCase):
             offset = work / "output" / "game_offset.pdf"
             requests = [
                 {"command": "create_pdf", "args": ["--invalid-option"]},
-                {"command": "create_pdf", "args": ["--only_fronts", "--ppi", "72", "--name", "Test é 一"]},
-                {"command": "offset_pdf", "pdf_path": str(pdf), "x_offset": 1, "y_offset": 2, "save": True, "ppi": 72},
+                {"command": "create_pdf", "args": ["--only_fronts", "--ppi", "72", "--label", "Test é 一"]},
+                {"command": "offset_pdf", "pdf_path": str(pdf), "x_offset": 1, "y_offset": 2, "angle": 0.25, "save": True, "ppi": 72},
                 {"command": "create_pdf", "args": ["--only_fronts", "--load_offset", "--ppi", "72"]},
             ]
             # ensure_ascii=False matches JSON.stringify() in the Electron client.
@@ -59,7 +62,7 @@ class FrozenWorkerTest(unittest.TestCase):
                 finally:
                     document.close()
             saved = json.loads((work / "data" / "offset_data.json").read_text(encoding="utf-8"))
-            self.assertEqual((saved["x_offset"], saved["y_offset"]), (1, 2))
+            self.assertEqual((saved["x_offset"], saved["y_offset"], saved["angle_offset"]), (1, 2, 0.25))
 
 
 if __name__ == "__main__":

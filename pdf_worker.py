@@ -58,6 +58,7 @@ def handle_offset_pdf(req):
                 output_pdf_path=req.get("output_pdf_path", None),
                 x_offset=req.get("x_offset", None),
                 y_offset=req.get("y_offset", None),
+                angle=req.get("angle", None),
                 save=req.get("save", False),
                 ppi=req.get("ppi", 300),
             )

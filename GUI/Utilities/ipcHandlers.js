@@ -149,10 +149,11 @@ ipcMain.handle('read-offset-data', async () => {
     const data = JSON.parse(contents);
     return {
       x_offset: data.x_offset || 0,
-      y_offset: data.y_offset || 0
+      y_offset: data.y_offset || 0,
+      angle_offset: data.angle_offset || 0
     };
   } catch (err) {
-    return { x_offset: 0, y_offset: 0 };
+    return { x_offset: 0, y_offset: 0, angle_offset: 0 };
   }
 });
 
@@ -160,9 +161,17 @@ ipcMain.handle('save-offset-data', async (event, { x_offset, y_offset } = {}) =>
   const dataDir = getDataDir();
   await fs.promises.mkdir(dataDir, { recursive: true });
   const offsetPath = path.join(dataDir, 'offset_data.json');
+  let angle_offset = 0;
+  try {
+    const saved = JSON.parse(await fs.promises.readFile(offsetPath, 'utf8'));
+    angle_offset = Number(saved.angle_offset) || 0;
+  } catch (err) {
+    // Use the default angle if no valid offset file exists.
+  }
   const data = {
     x_offset: Number(x_offset) || 0,
-    y_offset: Number(y_offset) || 0
+    y_offset: Number(y_offset) || 0,
+    angle_offset
   };
   await fs.promises.writeFile(offsetPath, JSON.stringify(data, null, 4), 'utf8');
   return data;

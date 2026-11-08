@@ -1,6 +1,6 @@
 ---
 title: 'Flesh and Blood'
-weight: 35
+weight: 40
 ---
 
 This plugin reads a decklist, fetches card art from [Fabrary](https://fabrary.net/), and puts the card images into the proper `game/` directories.
@@ -38,7 +38,7 @@ Options:
 
 ### `fabrary`
 
-Fabrary format`.
+[Fabrary](https://fabrary.net) format.
 
 ```
 Name: Sweden National Championship 2025 1st 🇸🇪

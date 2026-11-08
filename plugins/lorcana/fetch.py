@@ -1,10 +1,17 @@
 import os
+import sys
 
 import click
-from deck_formats import DeckFormat, parse_deck
-from lorcast import get_handle_card
 
-front_directory = os.path.join('game', 'front')
+# Add parent directory to path to allow imports when run as a script
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, REPO_ROOT)
+
+from plugins.lorcana.deck_formats import DeckFormat, parse_deck
+from plugins.lorcana.lorcast import get_handle_card
+from utilities import configure_console_encoding, ensure_directory
+
+front_directory = os.path.join(REPO_ROOT, 'game', 'front')
 
 @click.command()
 @click.argument('deck_path')
@@ -14,6 +21,7 @@ def cli(
     deck_path: str,
     format: DeckFormat,
 ):
+    ensure_directory(front_directory)
     if not os.path.isfile(deck_path):
         print(f'{deck_path} is not a valid file.')
         return
@@ -30,4 +38,5 @@ def cli(
         )
 
 if __name__ == '__main__':
+    configure_console_encoding()
     cli()

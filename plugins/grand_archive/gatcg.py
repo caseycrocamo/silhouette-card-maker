@@ -1,6 +1,6 @@
 from re import sub
 from os import path
-from requests import Response, get
+from requests import Response, Session
 from time import sleep
 
 CARD_URL_TEMPLATE = 'https://api.gatcg.com/cards/{name}'
@@ -8,11 +8,15 @@ CARD_ART_URL_TEMPLATE = 'https://api.gatcg.com/{card_art_suffix}'
 
 OUTPUT_CARD_ART_FILE_TEMPLATE = '{deck_index}{card_name}{quantity_counter}.png'
 
-def request_gatcg(query: str) -> Response:
-    r = get(query, headers = {'user-agent': 'silhouette-card-maker/0.1', 'accept': '*/*'})
+session = Session()
 
+def request_gatcg(query: str) -> Response:
+    r = session.get(query, headers = {'user-agent': 'silhouette-card-maker/0.1', 'accept': '*/*'})
+
+    # Check for 2XX response code
     r.raise_for_status()
-    sleep(0.15)
+
+    sleep(0.075)
 
     return r
 

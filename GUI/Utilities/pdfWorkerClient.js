@@ -305,7 +305,7 @@ async function runCreatePdf(argv) {
   return sendRequest({ command: 'create_pdf', args: Array.isArray(argv) ? argv : [] });
 }
 
-async function runOffsetPdf({ pdfPath, xOffset, yOffset, save } = {}) {
+async function runOffsetPdf({ pdfPath, xOffset, yOffset, angle, save } = {}) {
   const req = { command: 'offset_pdf' };
   if (pdfPath !== undefined && pdfPath !== null && pdfPath !== '') {
     req.pdf_path = pdfPath;
@@ -315,6 +315,9 @@ async function runOffsetPdf({ pdfPath, xOffset, yOffset, save } = {}) {
   }
   if (yOffset !== undefined && yOffset !== null && yOffset !== '') {
     req.y_offset = Number(yOffset);
+  }
+  if (angle !== undefined && angle !== null && angle !== '') {
+    req.angle = Number(angle);
   }
   req.save = Boolean(save);
   return sendRequest(req);

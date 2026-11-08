@@ -1,6 +1,6 @@
 ---
 title: 'Yu-Gi-Oh!'
-weight: 5
+weight: 3
 ---
 
 This plugin reads a decklist, fetches card art from [ygoprodeck](https://ygoprodeck.com/card-database), and puts them in the proper `game/` directories.

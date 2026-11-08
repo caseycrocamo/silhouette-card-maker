@@ -25,61 +25,13 @@ Now you can create the PDF using [`create_pdf.py`](../../README.md#create_pdfpy)
 ## CLI Options
 
 ```
-Usage: fetch.py [OPTIONS] DECK_PATH {text|bbcode|markdown|plain_text|jinteki}
+Usage: fetch.py [OPTIONS] DECK_PATH {bbcode|jinteki|markdown|plain_text|text}
 
 Options:
   --help  Show this message and exit.
 ```
 
 ## Formats
-
-### `text`
-
-```
--i-m-in-love-with-the-auco-by-r-e-genasis-1st-spb-mc-
-AU Co.: The Gold Standard in Clones (Elevation)
-
-Agenda (11)
-1x Longevity Serum (System Gateway)
-2x Regenesis (Midnight Sun)
-3x Hybrid Release (Parhelion)
-3x Fujii Asset Retrieval (The Automata Initiative)
-2x Sericulture Expansion (Elevation)
-
-Asset (13)
-2x Spin Doctor (System Gateway) ••
-3x Moon Pool (Midnight Sun)
-3x Cohort Guidance Program (Rebellion Without Rehearsal)
-2x Humanoid Resources (Elevation) ••••
-3x Phật Gioan Baotixita (Elevation)
-
-Upgrade (3)
-1x Manegarm Skunkworks (System Gateway) •••
-1x Anoetic Void (System Gateway)
-1x Mavirus (Midnight Sun)
-
-Operation (9)
-3x Hansei Review (System Gateway)
-3x Hedge Fund (System Gateway)
-3x Petty Cash (Elevation)
-
-Barrier (5)
-2x Tatu-Bola (The Automata Initiative)
-3x Boto (Rebellion Without Rehearsal)
-
-Code Gate (4)
-3x Scatter Field (Elevation) ••••• •
-1x Flyswatter (Elevation)
-
-Sentry (4)
-2x Saisentan (Downfall)
-2x Anemone (Midnight Sun)
-
-15 influence spent (max 15, available 0)
-20 agenda points (between 20 and 21)
-49 cards (min 45)
-Cards up to Elevation
-```
 
 ### `bbcode`
 
@@ -131,6 +83,35 @@ bbCode format.
 Cards up to Elevation
 
 Decklist [url=https://netrunnerdb.com/en/decklist/1cc34350-4dfe-4d61-a87b-c1f33da2827d/-i-m-in-love-with-the-auco-by-r-e-genasis-1st-spb-mc-]published on NetrunnerDB[/url].
+```
+
+### `jinteki`
+
+[Jinteki](https://jinteki.net) format.
+
+```
+3 Fujii Asset Retrieval
+3 Hybrid Release
+1 Longevity Serum
+2 Regenesis
+2 Sericulture Expansion
+3 Cohort Guidance Program
+2 Humanoid Resources
+3 Moon Pool
+3 Phật Gioan Baotixita
+2 Spin Doctor
+3 Hansei Review
+3 Hedge Fund
+3 Petty Cash
+1 Anoetic Void
+1 Manegarm Skunkworks
+1 Mavirus
+3 Boto
+2 Tatu-Bola
+1 Flyswatter
+3 Scatter Field
+2 Anemone
+2 Saisentan
 ```
 
 ### `markdown`
@@ -237,31 +218,50 @@ Cards up to Elevation
 Decklist published on https://netrunnerdb.com.
 ```
 
-### `jinteki`
-
-Jinteki format.
+### `text`
 
 ```
-3 Fujii Asset Retrieval
-3 Hybrid Release
-1 Longevity Serum
-2 Regenesis
-2 Sericulture Expansion
-3 Cohort Guidance Program
-2 Humanoid Resources
-3 Moon Pool
-3 Phật Gioan Baotixita
-2 Spin Doctor
-3 Hansei Review
-3 Hedge Fund
-3 Petty Cash
-1 Anoetic Void
-1 Manegarm Skunkworks
-1 Mavirus
-3 Boto
-2 Tatu-Bola
-1 Flyswatter
-3 Scatter Field
-2 Anemone
-2 Saisentan
+-i-m-in-love-with-the-auco-by-r-e-genasis-1st-spb-mc-
+AU Co.: The Gold Standard in Clones (Elevation)
+
+Agenda (11)
+1x Longevity Serum (System Gateway)
+2x Regenesis (Midnight Sun)
+3x Hybrid Release (Parhelion)
+3x Fujii Asset Retrieval (The Automata Initiative)
+2x Sericulture Expansion (Elevation)
+
+Asset (13)
+2x Spin Doctor (System Gateway) ••
+3x Moon Pool (Midnight Sun)
+3x Cohort Guidance Program (Rebellion Without Rehearsal)
+2x Humanoid Resources (Elevation) ••••
+3x Phật Gioan Baotixita (Elevation)
+
+Upgrade (3)
+1x Manegarm Skunkworks (System Gateway) •••
+1x Anoetic Void (System Gateway)
+1x Mavirus (Midnight Sun)
+
+Operation (9)
+3x Hansei Review (System Gateway)
+3x Hedge Fund (System Gateway)
+3x Petty Cash (Elevation)
+
+Barrier (5)
+2x Tatu-Bola (The Automata Initiative)
+3x Boto (Rebellion Without Rehearsal)
+
+Code Gate (4)
+3x Scatter Field (Elevation) ••••• •
+1x Flyswatter (Elevation)
+
+Sentry (4)
+2x Saisentan (Downfall)
+2x Anemone (Midnight Sun)
+
+15 influence spent (max 15, available 0)
+20 agenda points (between 20 and 21)
+49 cards (min 45)
+Cards up to Elevation
 ```

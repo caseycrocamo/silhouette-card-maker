@@ -1,6 +1,6 @@
 ---
 title: 'Gundam'
-weight: 45
+weight: 60
 ---
 
 This plugin reads a decklist and puts the card images into the proper `game/` directories.
@@ -28,7 +28,7 @@ Now you can create the PDF using [`create_pdf.py`]({{% ref "../docs/create" %}})
 ## CLI Options
 
 ```
-Usage: fetch.py [OPTIONS] DECK_PATH {deckplanet|limitless|egman|exburst}
+Usage: fetch.py [OPTIONS] DECK_PATH {deckplanet|egman|exburst|limitless}
 
 Options:
   --help  Show this message and exit.
@@ -38,7 +38,7 @@ Options:
 
 ### `deckplanet`
 
-DeckPlanet format.
+[DeckPlanet](https://www.deckplanet.net/) format.
 
 ```
 2 Guntank [GD01-008]
@@ -64,31 +64,9 @@ DeckPlanet format.
 4 Overflowing Affection [GD01-118]
 ```
 
-### `limitless`
-
-Limitless TCG format.
-
-```
-4 Dopp GD01-039
-4 Zaku Ⅰ ST03-007
-1 Pisces GD01-021
-4 Zaku Ⅱ ST03-008
-4 Zaku Ⅱ GD01-035
-3 Guntank GD01-008
-4 Char's Zaku Ⅱ ST03-006
-4 Char's Zaku Ⅱ GD01-026
-2 G-Fighter GD01-009
-2 Gouf ST03-009
-4 Char's Gelgoog GD01-023
-3 Gundam ST01-001
-4 Char Aznable ST03-011
-4 Amuro Ray ST01-010
-3 Falmel ST03-016
-```
-
 ### `egman`
 
-Egman Events format.
+[Egman Events](https://egmanevents.com) format.
 
 ```
 4 GD01-039 Dopp
@@ -110,7 +88,7 @@ Egman Events format.
 
 ### `exburst`
 
-ExBurst format.
+[ExBurst](https://exburst.dev) format.
 
 ```
 4 x ST04-008
@@ -129,4 +107,26 @@ ExBurst format.
 2 x GD01-111
 2 x ST03-013
 4 x GD01-100
+```
+
+### `limitless`
+
+[Limitless](https://limitlesstcg.com) format.
+
+```
+4 Dopp GD01-039
+4 Zaku Ⅰ ST03-007
+1 Pisces GD01-021
+4 Zaku Ⅱ ST03-008
+4 Zaku Ⅱ GD01-035
+3 Guntank GD01-008
+4 Char's Zaku Ⅱ ST03-006
+4 Char's Zaku Ⅱ GD01-026
+2 G-Fighter GD01-009
+2 Gouf ST03-009
+4 Char's Gelgoog GD01-023
+3 Gundam ST01-001
+4 Char Aznable ST03-011
+4 Amuro Ray ST01-010
+3 Falmel ST03-016
 ```

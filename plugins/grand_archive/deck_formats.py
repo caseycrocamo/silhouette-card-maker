@@ -14,7 +14,9 @@ def parse_deck_helper(deck_text: str, handle_card: Callable, is_card_line: Calla
 
             card_name, quantity = extract_card_data(line)
 
-            print(f'Index: {index}, quantity: {quantity}, card name: {card_name}')
+            parts = [f'Index: {index}', f'quantity: {quantity}']
+            if card_name: parts.append(f'card name: {card_name}')
+            print(', '.join(parts))
             try:
                 handle_card(index, card_name, quantity)
             except Exception as e:
@@ -51,6 +53,3 @@ def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable) -> Non
         return parse_omnideck(deck_text, handle_card)
     else:
         raise ValueError("Unrecognized deck format.")
-
-if __name__ == '__main__':
-    parse_deck()

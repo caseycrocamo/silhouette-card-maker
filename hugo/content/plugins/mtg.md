@@ -5,7 +5,7 @@ weight: 1
 
 This plugin reads a decklist and automatically fetches the card art and puts them in the proper `game/` directories.
 
-This plugin supports many decklist formats such as `simple`, `mtga`, `mtgo`, `archidekt`, `deckstats`, `moxfield`, and `scryfall_json`. To learn more, see [here](#formats).
+This plugin supports many decklist formats such as `simple`, `mtga`, `mtgo`, `archidekt`, `cubecobra_csv`, `deckstats`, `moxfield`, `scryfall_json`, `mpcfill_xml`, and `url`. To learn more, see [here](#formats).
 
 ## Basic Instructions
 
@@ -28,8 +28,7 @@ Now you can create the PDF using [`create_pdf.py`]({{% ref "../docs/create" %}})
 ## CLI Options
 
 ```
-Usage: fetch.py [OPTIONS] DECK_PATH
-                {simple|mtga|mtgo|archidekt|deckstats|moxfield}
+Usage: fetch.py [OPTIONS] DECK_PATH {archidekt|cubecobra_csv|deckstats|moxfield|mpcfill_xml|mtga|mtgo|scryfall_json|simple|url}
 
 Options:
   -i, --ignore_set_and_collector_number
@@ -39,12 +38,23 @@ Options:
                                   sets are not provided.
   -s, --prefer_set TEXT           Prefer fetching cards from a particular
                                   set(s) if sets are not provided. Use this
-                                  option multiple times to specify multiple
-                                  preferred sets.
+                                  option multiple times for a priority list.
+  --ignore_set TEXT               Exclude a set from consideration when
+                                  fetching cards. Use this option multiple
+                                  times to exclude multiple sets.
   --prefer_showcase               Prefer fetching cards with showcase
                                   treatment
-  --prefer_extra_art               Prefer fetching cards with full art,
+  --prefer_extra_art              Prefer fetching cards with full art,
                                   borderless, or extended art.
+  --prefer_lang [en|sp|fr|de|it|pt|jp|kr|ru|cs|ct|ag|ph]
+                                  Preferred language for card images (printed
+                                  code). Use multiple times for a priority list.
+                                  Falls back to English if none are available.
+  --prefer_ub                     Prefer Universe Beyond printings when
+                                  available.
+  --ignore_ub                     Exclude Universe Beyond printings from
+                                  consideration.
+  --tokens                        Fetch related tokens when fetching cards
   --help                          Show this message and exit.
 ```
 
@@ -80,18 +90,151 @@ Use a Deckstats decklist named `eldraine_commander.txt`. Use the set and collect
 python plugins/mtg/fetch.py game/decklist/eldraine_commander.txt deckstats -s eld -s woe
 ```
 
+Use an MTG Arena decklist named `deck.txt` and fetch Japanese card images where available, falling back to English otherwise.
+
+```sh
+python plugins/mtg/fetch.py game/decklist/deck.txt mtga --prefer_lang jp
+```
+
+Use an MTG Arena decklist named `deck.txt` and try Japanese first, then German, then English.
+
+```sh
+python plugins/mtg/fetch.py game/decklist/deck.txt mtga --prefer_lang jp --prefer_lang de
+```
+
+Use a Deckstats decklist named `eldraine_commander.txt` and prefer Eldraine first, then Wilds of Eldraine.
+
+```sh
+python plugins/mtg/fetch.py game/decklist/eldraine_commander.txt deckstats -s eld -s woe
+```
+
+Use an MTG Arena decklist named `deck.txt` and prefer Universe Beyond printings where available (e.g. Lord of the Rings, Warhammer 40K crossover cards).
+
+```sh
+python plugins/mtg/fetch.py game/decklist/deck.txt mtga --prefer_ub
+```
+
+Use an MTG Arena decklist named `deck.txt` and exclude Universe Beyond printings, always fetching standard Magic printings instead.
+
+```sh
+python plugins/mtg/fetch.py game/decklist/deck.txt mtga --ignore_ub
+```
+
 ## Formats
 
-### `simple`
+### `archidekt`
 
-A list of card names.
+[Archidekt](https://archidekt.com) format.
 
 ```
-Isshin, Two Heavens as One
-Arid Mesa
-Battlefield Forge
-Blazemire Verge
-Blightstep Pathway
+1x Agadeem's Awakening // Agadeem, the Undercrypt (znr) 90 [Resilience,Land]
+1x Ancient Cornucopia (big) 16 [Maybeboard{noDeck}{noPrice},Mana Advantage]
+1x Arachnogenesis (cmm) 647 [Maybeboard{noDeck}{noPrice},Mass Disruption]
+1x Ashnod's Altar (ema) 218 *F* [Mana Advantage]
+1x Assassin's Trophy (sld) 139 [Targeted Disruption]
+```
+
+### `cubecobra_csv`
+
+[CubeCobra](https://cubecobra.com) CSV export format. Export your cube from CubeCobra using the "Export as CSV" option.
+
+```csv
+name,CMC,Type,Color,Set,Collector Number,Rarity,Color Category,status,Finish,maybeboard,image URL,image Back URL,tags,Notes,MTGO ID,Custom
+"Lightning Bolt",1,"Instant",R,"leb","162",common,null,Owned,Non-foil,false,,,"","",-1,false
+"Death Ward",1,"Instant",W,"leb","18",common,null,Owned,Non-foil,false,"https://i.imgur.com/ytZ2uaY.png",,"","",-1,false
+```
+
+### `deckstats`
+
+[Deckstats](https://deckstats.net) format.
+
+```
+//Main
+1 [2XM#310] Ash Barrens
+1 Blinkmoth Nexus
+1 Bloodstained Mire
+
+//Sideboard
+1 [2XM#315] Darksteel Citadel
+
+//Maybeboard
+1 [MID#159] Smoldering Egg // Ashmouth Dragon
+```
+
+### `moxfield`
+
+[Moxfield](https://moxfield.com) format.
+
+```
+1 Ainok Bond-Kin (2X2) 5
+1 Pegasus Guardian // Rescue the Foal (CLB) 36
+2 Witch Enchanter // Witch-Blessed Meadow (MH3) 239
+
+SIDEBOARD:
+1 Containment Priest (M21) 13
+1 Deafening Silence (MB2) 9
+```
+
+### `mpcfill_xml`
+
+[MPCFill](https://mpcfill.com) XML format.
+
+```xml
+<order>
+    <details>
+        <quantity>6</quantity>
+        <bracket>18</bracket>
+        <stock>(S30) Standard Smooth</stock>
+        <foil>false</foil>
+    </details>
+    <fronts>
+        <card>
+            <id>1tc4fgHl6ZGYvg_HATosZydWgtHZSg0kc</id>
+            <slots>0,5</slots>
+            <name>Treasure (Rachta Lin).jpg</name>
+            <query>t:treasure</query>
+        </card>
+        <card>
+            <id>1iMS2cqqqfhx7kDrtzYhqrrjKsZyRFPeK</id>
+            <slots>1</slots>
+            <name>Alrund, God of the Cosmos (Kieran Yanner).jpg</name>
+            <query>alrund god of cosmos</query>
+        </card>
+        <card>
+            <id>1Ibb8tpwwPn6nhg0TlMzeaDvcqXPlfmLe</id>
+            <slots>2</slots>
+            <name>Titania, Voice of Gaea (Borderless Cristi Balanescu).jpg</name>
+            <query>titania voice of gaea</query>
+        </card>
+        <card>
+            <id>1ezjK8iXEdNIE_Ks0CpsTdSHfbePvw_dJ</id>
+            <slots>3,4</slots>
+            <name>Aberrant Researcher.png</name>
+            <query>aberrant researcher</query>
+        </card>
+    </fronts>
+    <backs>
+        <card>
+            <id>1htRd369fxKsPap5RbI7HUOdAL8-Fn6y2</id>
+            <slots>1</slots>
+            <name>Hakka, Whispering Raven (Kieran Yanner).jpg</name>
+            <query>hakka whispering raven</query>
+        </card>
+        <card>
+            <id>1lqUE-pjgjW74Q-vAu9IRLjHYtwa_CnnO</id>
+            <slots>2</slots>
+            <name>Titania, Gaea Incarnate Top.png</name>
+            <query>titania gaea incarnate top</query>
+        </card>
+        <card>
+            <id>1X9bpWccFfqBjNAhp3j8uJf85ihtMabWi</id>
+            <slots>3,4</slots>
+            <name>Perfected Form.png</name>
+            <query>perfected form</query>
+        </card>
+    </backs>
+    <cardback>1LrVX0pUcye9n_0RtaDNVl2xPrQgn7CYf</cardback>
+</order>
 ```
 
 ### `mtga`
@@ -126,52 +269,9 @@ SIDEBOARD:
 3 Deafening Silence
 ```
 
-### `archidekt`
-
-Archidekt format.
-
-```
-1x Agadeem's Awakening // Agadeem, the Undercrypt (znr) 90 [Resilience,Land]
-1x Ancient Cornucopia (big) 16 [Maybeboard{noDeck}{noPrice},Mana Advantage]
-1x Arachnogenesis (cmm) 647 [Maybeboard{noDeck}{noPrice},Mass Disruption]
-1x Ashnod's Altar (ema) 218 *F* [Mana Advantage]
-1x Assassin's Trophy (sld) 139 [Targeted Disruption]
-```
-
-### `deckstats`
-
-Deckstats format.
-
-```
-//Main
-1 [2XM#310] Ash Barrens
-1 Blinkmoth Nexus
-1 Bloodstained Mire
-
-//Sideboard
-1 [2XM#315] Darksteel Citadel
-
-//Maybeboard
-1 [MID#159] Smoldering Egg // Ashmouth Dragon
-```
-
-### `moxfield`
-
-Moxfield format.
-
-```
-1 Ainok Bond-Kin (2X2) 5
-1 Pegasus Guardian // Rescue the Foal (CLB) 36
-2 Witch Enchanter // Witch-Blessed Meadow (MH3) 239
-
-SIDEBOARD:
-1 Containment Priest (M21) 13
-1 Deafening Silence (MB2) 9
-```
-
 ### `scryfall_json`
 
-Scryfall JSON format.
+[Scryfall](https://scryfall.com) JSON format. When the JSON includes `image_uris`, images are fetched directly from those URLs.
 
 ```json
 {
@@ -206,4 +306,40 @@ Scryfall JSON format.
     ]
   }
 }
+```
+
+### `simple`
+
+A list of card names.
+
+```
+Isshin, Two Heavens as One
+Arid Mesa
+Battlefield Forge
+Blazemire Verge
+Blightstep Pathway
+```
+
+### `url`
+
+Instead of providing a decklist file, you can pass a deck URL directly. This format uses the [`mtg_parser`](https://pypi.org/project/mtg-parser/) library to fetch and parse the deck.
+
+Supported sites and URL formats:
+
+| Site | URL Format |
+|------|------------|
+| [Aetherhub](https://aetherhub.com) | `https://aetherhub.com/Deck/<deck_name>` |
+| [Archidekt](https://archidekt.com) | `https://www.archidekt.com/decks/<deck_id>/` |
+| [Deckstats](https://deckstats.net) | `https://deckstats.net/decks/<user_id>/<deck_id>` |
+| [Moxfield](https://moxfield.com) | `https://www.moxfield.com/decks/<deck_id>` |
+| [MTG Goldfish](https://www.mtggoldfish.com) | `https://www.mtggoldfish.com/deck/<deck_id>` |
+| [MTGJSON](https://mtgjson.com) | `https://mtgjson.com/api/v5/decks/<deck_name>.json` |
+| [Scryfall](https://scryfall.com) | `https://scryfall.com/<user_id>/decks/<deck_id>/` |
+| [Tapped Out](https://tappedout.net) | `https://tappedout.net/mtg-decks/<deck_id>/` |
+| [TCGPlayer](https://www.tcgplayer.com) | `https://www.tcgplayer.com/content/magic-the-gathering/deck/<deck_name>/<deck_id>` |
+
+Example:
+
+```sh
+python plugins/mtg/fetch.py https://www.moxfield.com/decks/example-deck-id url
 ```

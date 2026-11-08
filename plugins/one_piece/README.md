@@ -25,40 +25,17 @@ Now you can create the PDF using [`create_pdf.py`](../../README.md#create_pdfpy)
 ## CLI Options
 
 ```
-Usage: fetch.py [OPTIONS] DECK_PATH {optcgsim|egman}
+Usage: fetch.py [OPTIONS] DECK_PATH {egman|optcgsim}
 
 Options:
   --help  Show this message and exit.
 ```
 
-## Format
-
-### `optcgsim`
-
-OPTCG Simulator format.
-
-```
-1xOP12-001
-4xOP01-016
-2xOP02-015
-4xOP03-008
-4xOP12-006
-4xOP01-013
-4xOP12-014
-4xOP01-025
-4xOP10-005
-4xOP12-015
-3xOP12-016
-3xOP12-017
-4xOP12-018
-3xOP12-019
-2xOP06-018
-1xST21-017
-```
+## Formats
 
 ### `egman`
 
-Egman Events format.
+[Egman Events](https://egmanevents.com) format.
 
 ```
 4 OP01-016 Nami
@@ -77,4 +54,27 @@ Egman Events format.
 3 OP12-019 Color of Arms Haki
 2 OP01-025 Roronoa Zoro
 1 OP12-001 Silvers Rayleigh
+```
+
+### `optcgsim`
+
+[OPTCG Sim](https://optcgsim.com) format.
+
+```
+1xOP12-001
+4xOP01-016
+2xOP02-015
+4xOP03-008
+4xOP12-006
+4xOP01-013
+4xOP12-014
+4xOP01-025
+4xOP10-005
+4xOP12-015
+3xOP12-016
+3xOP12-017
+4xOP12-018
+3xOP12-019
+2xOP06-018
+1xST21-017
 ```

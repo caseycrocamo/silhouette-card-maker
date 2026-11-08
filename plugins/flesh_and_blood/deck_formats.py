@@ -20,7 +20,10 @@ def parse_deck_helper(deck_text: str, handle_card: Callable, is_card_line: Calla
 
             name, pitch, quantity = extract_card_data(line)
 
-            print(f'Index: {index}, quantity: {quantity}, name: {name}, pitch: {pitch.name.lower()}')
+            parts = [f'Index: {index}', f'quantity: {quantity}']
+            if name: parts.append(f'name: {name}')
+            if pitch and pitch != Pitch.NONE: parts.append(f'pitch: {pitch.name.lower()}')
+            print(', '.join(parts))
             try:
                 handle_card(index, name, pitch, quantity)
             except Exception as e:
@@ -66,6 +69,3 @@ def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable) -> Non
         return parse_fabrary(deck_text, handle_card)
     else:
         raise ValueError('Unrecognized deck format.')
-
-if __name__ == '__main__':
-    parse_deck()

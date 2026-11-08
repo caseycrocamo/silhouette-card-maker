@@ -4,7 +4,7 @@ from _collections_abc import Set
 from typing import Callable, Dict, Optional, Tuple
 from base64 import b64decode
 
-from api import fetch_card_number
+from .api import fetch_card_number
 
 card_data_tuple = Tuple[str, str, int] # Name, Card Number, Quantity
 def parse_deck_helper(
@@ -23,7 +23,10 @@ def parse_deck_helper(
 
             name, card_number, quantity = extract_card_data(line)
 
-            print(f'Index: {index}, quantity: {quantity}, card number: {card_number}, name: {name}')
+            parts = [f'Index: {index}', f'quantity: {quantity}']
+            if card_number: parts.append(f'card number: {card_number}')
+            if name: parts.append(f'name: {name}')
+            print(', '.join(parts))
             try:
                 handle_card(index, card_number, quantity)
             except Exception as e:
@@ -101,9 +104,9 @@ def parse_piltover_archive(deck_text: str, handle_card: Callable):
     parse_deck_helper(deck_text, split_piltover_archive_deck, is_piltover_archive_line, extract_piltover_archive_card_data, handle_card)
 
 class DeckFormat(str, Enum):
-    TTS       = 'tts'
+    PILTOVER = 'piltover_archive'
     PIXELBORN = 'pixelborn'
-    PILTOVER  = 'piltover_archive'
+    TTS = 'tts'
 
 def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable):
     if format == DeckFormat.TTS:

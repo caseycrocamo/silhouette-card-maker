@@ -1,27 +1,11 @@
 name: Check links in Hugo site
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
   workflow_dispatch:
-
-  # Run every 2 weeks (you can adjust the cron expression to your preferred schedule)
   schedule:
-    - cron: '0 0 * * 0' # Runs every Sunday at midnight (UTC), every 2 weeks
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+    - cron: '0 0 * * 0' # Runs every Sunday at 00:00 UTC
 
 # Default to bash
 defaults:

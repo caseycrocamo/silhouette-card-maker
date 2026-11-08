@@ -1,16 +1,23 @@
+import sys
 from os import path
 from click import command, argument, Choice
 
-from deck_formats import DeckFormat, parse_deck
-from api  import get_handle_card
+# Add parent directory to path to allow imports when run as a script
+REPO_ROOT = path.abspath(path.join(path.dirname(__file__), '..', '..'))
+sys.path.insert(0, REPO_ROOT)
 
-front_directory = path.join('game', 'front')
+from plugins.netrunner.deck_formats import DeckFormat, parse_deck
+from plugins.netrunner.api import get_handle_card
+from utilities import configure_console_encoding, ensure_directory
+
+front_directory = path.join(REPO_ROOT, 'game', 'front')
 
 @command()
 @argument('deck_path')
 @argument('format', type=Choice([t.value for t in DeckFormat], case_sensitive=False))
 
 def cli(deck_path: str, format: DeckFormat):
+    ensure_directory(front_directory)
     if not path.isfile(deck_path):
         print(f'{deck_path} is not a valid file.')
         return
@@ -21,4 +28,5 @@ def cli(deck_path: str, format: DeckFormat):
         parse_deck(deck_text, format, get_handle_card( front_directory ))
 
 if __name__ == '__main__':
+    configure_console_encoding()
     cli()

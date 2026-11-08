@@ -1,6 +1,6 @@
 ---
 title: 'Digimon'
-weight: 40
+weight: 30
 ---
 
 This plugin reads a decklist, fetches the card images, and puts the card images into the proper `game/` directories.
@@ -28,8 +28,8 @@ Now you can create the PDF using [`create_pdf.py`]({{% ref "../docs/create" %}})
 ## CLI Options
 
 ```
-Usage: fetch.py [OPTIONS] DECK_PATH {tts|digimoncardio|digimoncarddev|digimonc
-                ardapp|digimonmeta|untap}
+Usage: fetch.py [OPTIONS] DECK_PATH {digimoncardapp|digimoncarddev|digimoncardio
+                |digimonmeta|tts|untap}
 
 Options:
   --help  Show this message and exit.
@@ -37,76 +37,9 @@ Options:
 
 ## Formats
 
-### `tts`
-
-The format for ``Tabletop Simulator``.
-
-```
-["Exported from https://digimoncard.dev","BT15-006","BT15-006","BT15-006","BT15-006","BT2-070","BT2-070","BT2-070","BT15-069","BT15-069","BT15-069","BT15-069","P-123","BT16-082","BT16-082","BT16-082","BT16-082","BT19-062","BT18-026","BT18-053","BT7-013","BT8-067","EX9-011","EX9-012","EX9-043","BT11-055","BT18-052","BT19-052","EX7-044","ST17-07","EX9-030","BT15-064","EX9-064","BT12-072","EX1-073","EX1-073","EX1-073","EX1-073","EX3-013","EX9-073","EX9-073","BT11-092","BT11-092","BT11-092","BT11-092","EX9-068","EX9-068","BT9-102","BT9-102","BT9-102","BT9-102","BT15-096","BT15-096","BT15-096","BT15-096"]
-```
-
-### `digimoncardio`
-
-[digimoncard.io](digimoncard.io) format.
-
-```
-// Digimon Deck List 
-4 BlitzGreymon EX9-013
-2 Blue Scramble LM-028
-4 Gabumon BT15-020
-2 Gabumon EX9-014
-4 Gabumon (X Antibody) BT9-020
-4 Garurumon BT15-024
-2 Garurumon P-007
-2 Garurumon (X Antibody) BT9-024
-1 Garurumon (X Antibody) EX5-018
-2 Matt Ishida BT15-083
-2 Mental Training P-104
-1 MetalGarurumon BT15-101
-4 MetalGarurumon EX1-021
-4 Omnimon Alter-S EX9-021
-4 Tai Kamiya & Matt Ishida EX9-066
-4 WereGarurumon: Sagittarius Mode EX9-019
-4 Wisteria Memory Boost! LM-034
-// Egg Deck 
-1 Bukamon BT14-002
-4 Wanyamon BT11-002
-```
-
-### `digimoncarddev`
-
-[digimoncard.dev](digimoncard.dev) format.
-
-```
-// Digimon DeckList
-
-1 DemiMeramon             BT15-006 
-2 Myotismon ACE           BT15-076 
-2 Mist Barrier            BT15-098 
-2 Venom Infusion          BT15-099 
-1 Cupimon                 BT16-006 
-4 Arukenimon              BT16-072 
-4 Mummymon                BT16-073 
-4 MaloMyotismon           BT16-081 
-4 Ukkomon                 BT16-082 
-4 Arukenimon & Mummymon   BT16-089 
-3 Impmon                  BT19-067 
-1 DemiMeramon              BT3-006 
-1 Gazimon                  BT3-077 
-1 Psychemon                BT8-071 
-3 Yukio Oikawa             BT8-093 
-2 Mist Memory Boost!       BT8-108 
-4 Myotismon               EX10-048 
-2 Mummymon                EX10-051 
-2 VenomMyotismon          EX10-054 
-2 Yukio Oikawa            EX10-065 
-1 Ukkomon                    P-123 
-3 Myotismon (X Antibody)     P-145 
-```
-
 ### `digimoncardapp`
 
-[digimoncard.app](digimoncard.app) format.
+[digimoncard.app](https://digimoncard.app) format.
 
 ```
 // Digimon DeckList
@@ -130,9 +63,68 @@ BT11-107 Hades Force 2
 BT9-109 X Antibody 4
 ```
 
+### `digimoncarddev`
+
+[digimoncard.dev](https://digimoncard.dev) format.
+
+```
+// Digimon DeckList
+
+1 DemiMeramon             BT15-006
+2 Myotismon ACE           BT15-076
+2 Mist Barrier            BT15-098
+2 Venom Infusion          BT15-099
+1 Cupimon                 BT16-006
+4 Arukenimon              BT16-072
+4 Mummymon                BT16-073
+4 MaloMyotismon           BT16-081
+4 Ukkomon                 BT16-082
+4 Arukenimon & Mummymon   BT16-089
+3 Impmon                  BT19-067
+1 DemiMeramon              BT3-006
+1 Gazimon                  BT3-077
+1 Psychemon                BT8-071
+3 Yukio Oikawa             BT8-093
+2 Mist Memory Boost!       BT8-108
+4 Myotismon               EX10-048
+2 Mummymon                EX10-051
+2 VenomMyotismon          EX10-054
+2 Yukio Oikawa            EX10-065
+1 Ukkomon                    P-123
+3 Myotismon (X Antibody)     P-145
+```
+
+### `digimoncardio`
+
+[digimoncard.io](https://digimoncard.io) format.
+
+```
+// Digimon Deck List
+4 BlitzGreymon EX9-013
+2 Blue Scramble LM-028
+4 Gabumon BT15-020
+2 Gabumon EX9-014
+4 Gabumon (X Antibody) BT9-020
+4 Garurumon BT15-024
+2 Garurumon P-007
+2 Garurumon (X Antibody) BT9-024
+1 Garurumon (X Antibody) EX5-018
+2 Matt Ishida BT15-083
+2 Mental Training P-104
+1 MetalGarurumon BT15-101
+4 MetalGarurumon EX1-021
+4 Omnimon Alter-S EX9-021
+4 Tai Kamiya & Matt Ishida EX9-066
+4 WereGarurumon: Sagittarius Mode EX9-019
+4 Wisteria Memory Boost! LM-034
+// Egg Deck
+1 Bukamon BT14-002
+4 Wanyamon BT11-002
+```
+
 ### `digimonmeta`
 
-The format for ``DigimonMeta``.
+[DigimonMeta](https://digimonmeta.com/) format.
 
 ```
 4 (BT22-002)
@@ -159,9 +151,17 @@ The format for ``DigimonMeta``.
 2 (BT22-098)
 ```
 
+### `tts`
+
+Tabletop Simulator format.
+
+```
+["Exported from https://digimoncard.dev","BT15-006","BT15-006","BT15-006","BT15-006","BT2-070","BT2-070","BT2-070","BT15-069","BT15-069","BT15-069","BT15-069","P-123","BT16-082","BT16-082","BT16-082","BT16-082","BT19-062","BT18-026","BT18-053","BT7-013","BT8-067","EX9-011","EX9-012","EX9-043","BT11-055","BT18-052","BT19-052","EX7-044","ST17-07","EX9-030","BT15-064","EX9-064","BT12-072","EX1-073","EX1-073","EX1-073","EX1-073","EX3-013","EX9-073","EX9-073","BT11-092","BT11-092","BT11-092","BT11-092","EX9-068","EX9-068","BT9-102","BT9-102","BT9-102","BT9-102","BT15-096","BT15-096","BT15-096","BT15-096"]
+```
+
 ### `untap`
 
-The format for ``Untap``.
+[Untap](https://untap.in) format.
 
 ```
 1 MetalTyrannomon                      (DCG) (BT11-055)
