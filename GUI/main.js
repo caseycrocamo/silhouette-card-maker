@@ -1,7 +1,9 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 require('./Utilities/ipcHandlers');
+require('./Utilities/cardImageCache').registerCardImageCache();
 const { startPdfWorker, stopPdfWorker, stopPdfWorkerForUpdate } = require('./Utilities/pdfWorkerClient');
+const { stopCardWorker } = require('./Utilities/cardWorkerClient');
 const { createUpdateService } = require('./Utilities/updateService');
 const { registerUpdateIpc } = require('./Utilities/updateIpc');
 const { jobActivity } = require('./Utilities/jobActivity');
@@ -24,12 +26,15 @@ async function prepareInstall() {
   const { response } = window ? await dialog.showMessageBox(window, options) : await dialog.showMessageBox(options);
   if (response !== 1) throw new Error('Restart cancelled. The downloaded update remains available.');
   await stopPdfWorkerForUpdate();
+  await stopCardWorker();
 }
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1280,
+    height: 900,
+    minWidth: 680,
+    minHeight: 600,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -60,12 +65,14 @@ app.whenReady().then(() => {
 app.on('before-quit', () => {
   if (updateService) updateService.stop();
   if (removeUpdateIpc) removeUpdateIpc();
+  stopCardWorker();
   stopPdfWorker();
 });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    stopPdfWorker();
+    stopCardWorker();
+  stopPdfWorker();
     app.quit();
   }
 });

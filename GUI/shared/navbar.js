@@ -115,7 +115,7 @@ class Navbar extends HTMLElement {
         const currentPath = window.location.pathname;
         if (currentPath.includes('/Home/')) {
             this.setAttribute('current-step', '1');
-        } else if (currentPath.includes('/MagicTheGathering/')) {
+        } else if ((currentPath.includes('/MagicTheGathering/') || currentPath.includes('/CardList/'))) {
             this.setAttribute('current-step', '2');
         } else if (currentPath.includes('/CreatePDF/')) {
             this.setAttribute('current-step', '3');
@@ -127,6 +127,10 @@ class Navbar extends HTMLElement {
     updateContent() {
         const attr = this.getAttribute('current-step');
         const currentStep = attr === null ? 1 : parseInt(attr);
+        const currentPath = window.location.pathname;
+        const explicitGame = currentPath.includes('/CardList/') ? new URLSearchParams(window.location.search).get('game') : null;
+        const activeGame = currentPath.includes('/MagicTheGathering/') ? 'mtg' :
+            (['mtg', 'pokemon'].includes(explicitGame) ? explicitGame : sessionStorage.getItem('activeGame') === 'pokemon' ? 'pokemon' : 'mtg');
         const isSettingsActive = currentStep === 0;
         const settingsLinkClasses = 'absolute right-8 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all duration-200 ' +
             (isSettingsActive
@@ -139,7 +143,7 @@ class Navbar extends HTMLElement {
                         <div class="flex items-center justify-between w-full max-w-[500px]">
                             ${this.renderStep(1, 'Choose Game', '../Home/home.html', currentStep)}
                             <div class="w-16 h-0.5 bg-content-light/30">&nbsp;</div>
-                            ${this.renderStep(2, 'Card List', '../MagicTheGathering/decklist.html', currentStep)}
+                            ${this.renderStep(2, 'Card List', '../CardList/decklist.html?game=' + activeGame, currentStep)}
                             <div class="w-16 h-0.5 bg-content-light/30">&nbsp;</div>
                             ${this.renderStep(3, 'Create PDF', '../CreatePDF/create.html', currentStep)}
                         </div>

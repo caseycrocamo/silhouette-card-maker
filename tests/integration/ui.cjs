@@ -83,7 +83,7 @@ async function navigation() {
   assert(await js("Boolean(document.getElementById('longText') && document.getElementById('searchBtn'))"), 'Navbar Card List destination did not load');
   await js("Array.from(document.querySelectorAll('nav-bar nav a')).find(a => a.getAttribute('href') === '../CreatePDF/create.html').click()");
   await waitFor(async () => (await js('location.pathname')).endsWith('/CreatePDF/create.html'), 'Navbar Create PDF link failed');
-  assert(await js("Boolean(document.getElementById('createPdfBtn') && document.getElementById('pdfArgs'))"), 'Navbar Create PDF destination did not load');
+  assert(await js("Boolean(document.getElementById('createPdfBtn') && document.getElementById('settingsPanel'))"), 'Navbar Create PDF destination did not load');
   await js("document.querySelector('nav-bar a[title=Settings]').click()");
   await waitFor(async () => (await js('location.pathname')).endsWith('/Settings/settings.html'), 'Navbar Settings link failed');
   assert(await js("Boolean(document.getElementById('saveOffsetBtn') && document.getElementById('runOffsetPdfBtn'))"), 'Navbar Settings destination did not load');
@@ -108,7 +108,7 @@ async function createPdf() {
   await waitFor(async () => !fs.existsSync(path.join(doubleDir(), 'fixture.png')), 'Double-sided image delete failed');
   chosenFiles = [path.join(root, 'missing-fixture.png')];
   await click('uploadBackBtn');
-  await waitFor(async () => (await js('window.__lastAlert || ""')).includes('Error uploading back image'), 'Invalid image selection did not show an error');
+  await waitFor(async () => (await js("document.getElementById('validationSummary').textContent")).includes('Error uploading back image'), 'Invalid image selection did not show an error');
   assert(!fs.existsSync(path.join(backDir(), 'back.png')), 'Invalid image selection created a back image');
   chosenFiles = [fixture];
   await click('uploadBackBtn');
@@ -116,24 +116,27 @@ async function createPdf() {
   assert(await js("document.querySelector('#backImagePreview img')?.alt === 'back.png'"), 'Back preview did not render');
   await click('clearBackBtn');
   await waitFor(async () => !fs.existsSync(path.join(backDir(), 'back.png')), 'Back image delete failed');
-  await js("document.getElementById('skip4Checkbox').click(); document.getElementById('loadOffsetCheckbox').click(); document.getElementById('onlyFrontsCheckbox').click()");
-  const toggles = await js("({args:document.getElementById('pdfArgs').value, doubleHidden:document.getElementById('doubleSidedSection').classList.contains('hidden'), backHidden:document.getElementById('backImageSection').classList.contains('hidden')})");
-  assert(toggles.args.includes('--skip 4') && toggles.args.includes('--load_offset') && toggles.args.includes('--only_fronts'), 'PDF option toggles did not update arguments');
-  assert(toggles.doubleHidden && toggles.backHidden, 'Only-front workflow did not hide back-side options');
-  await js(`document.getElementById('pdfArgs').value=${JSON.stringify(`--output_path ${path.join(outputDir(), 'ui-create.pdf')}`)}`);
+  await waitFor(async () => await js("Boolean(document.getElementById('setting-only_fronts'))"), 'PDF settings did not load', 30000);
+  await click('openSettings');
+  await js("for (const [name,value] of [['skip','4'],['load_offset',true],['only_fronts','true']]) { const input=document.getElementById('setting-'+name); if(input.type==='checkbox')input.checked=value;else input.value=value;input.dispatchEvent(new Event('change',{bubbles:true})); }");
+  assert(await js("document.getElementById('doubleSidedSection').classList.contains('hidden') && document.getElementById('backImageSection').classList.contains('hidden')"), 'Only-front workflow did not hide back-side sections');
+  await js(`const destination=document.getElementById('setting-output_path'); destination.value=${JSON.stringify(path.join(outputDir(), 'ui-create.pdf'))};destination.dispatchEvent(new Event('change',{bubbles:true}));`);
+  await click('saveSettings');
   await click('createPdfBtn');
   await waitFor(async () => (await js('location.pathname')).endsWith('/Utilities/pdf_viewer.html'), 'Create PDF did not open viewer', 30000);
   verifyPdf(path.join(outputDir(), 'ui-create.pdf'));
   await waitFor(async () => (await js("document.getElementById('pdfFrame').src")).includes('ui-create.pdf'), 'Viewer did not select generated PDF');
-  // Exercise the real empty-image validation and confirm the page remains usable.
   await load('CreatePDF/create.html');
+  await waitFor(async () => await js("Boolean(document.getElementById('setting-ppi'))"), 'PDF settings did not restore', 30000);
+  assert(await js("document.getElementById('setting-only_fronts').value==='true'"), 'Print mode draft was not restored');
   await click('clearFrontBtn');
   await click('createPdfBtn');
-  await waitFor(async () => (await js('window.__lastAlert || ""')).includes('Error creating PDF'), 'Empty image submission did not report an error');
+  await waitFor(async () => (await js("document.getElementById('validationSummary').textContent")).length > 0, 'Empty image submission did not report an error');
   seedFront();
-  await js("document.getElementById('pdfArgs').value='--unsupported-option'");
+  await js("const ppi=document.getElementById('setting-ppi');ppi.value='0';ppi.dispatchEvent(new Event('change',{bubbles:true}))");
   await click('createPdfBtn');
-  await waitFor(async () => (await js('window.__lastAlert || ""')).includes('Error creating PDF'), 'Invalid PDF argument did not report an error');
+  await waitFor(async () => (await js("document.getElementById('error-ppi').textContent")).length > 0, 'Invalid PPI did not report a field error');
+
 }
 
 async function settings() {
@@ -294,6 +297,8 @@ async function run() {
     automaticChecks: false, lastCheckedAt: null, releaseNotes: '', progress: 0,
     canInstall: false, error: null, notificationVisible: false
   }));
+  dialog.showMessageBox = async () => ({response:1});
+  dialog.showSaveDialog = async () => ({canceled:!chosenPdf,filePath:chosenPdf});
   dialog.showOpenDialog = async options => {
     if (options.filters?.some(filter => filter.name === 'PDF')) return { canceled: !chosenPdf, filePaths: chosenPdf ? [chosenPdf] : [] };
     return { canceled: chosenFiles.length === 0, filePaths: chosenFiles };

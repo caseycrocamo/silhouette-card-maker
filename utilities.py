@@ -243,6 +243,21 @@ def load_layout_config() -> LayoutConfig:
     return LayoutConfig(**raw_config)
 
 
+def resolve_pdf_layout(layout_config: LayoutConfig, card_size: str, paper_size: str, borderless: bool = False):
+    """Resolve aliases and validate the configured card/paper/variant combination."""
+    card_size = resolve_card_size_alias(layout_config, card_size)
+    paper_size = resolve_paper_size_alias(layout_config, paper_size)
+    if card_size not in layout_config.card_sizes:
+        raise ValueError(f'Unsupported card size "{card_size}".')
+    if paper_size not in layout_config.paper_sizes:
+        raise ValueError(f'Unsupported paper size "{paper_size}".')
+    variant = Variant.BORDERLESS if borderless else Variant.DEFAULT
+    layout = layout_config.layouts.get(paper_size, {}).get(card_size, {}).get(variant.value)
+    if layout is None:
+        raise ValueError(f'No {variant.value} layout defined for paper "{paper_size}" with card "{card_size}".')
+    return card_size, paper_size, layout
+
+
 # Borderless mode tricks Silhouette Studio into using a smaller effective inset than its
 # 10mm minimum (MIN_REG_INSET_MM) by inflating the declared paper size. The software
 # still places registration marks at 10mm from the declared edge, but since the declared
@@ -349,21 +364,19 @@ def parse_crop_string(crop_string: str | None, card_width: int, card_height: int
     mm_match = re.fullmatch(rf"({float_pattern})mm", crop_string)
     if mm_match:
         crop_mm = float(mm_match.group(1))
-        return convertInToCrop(crop_mm / 25.4, card_width, card_height)
-
-    # Match "0.1in" or "0.125in"
-    in_match = re.fullmatch(rf"({float_pattern})in", crop_string)
-    if in_match:
+        crop_x, crop_y = convertInToCrop(crop_mm / 25.4, card_width, card_height)
+    elif (in_match := re.fullmatch(rf"({float_pattern})in", crop_string)):
         crop_in = float(in_match.group(1))
-        return convertInToCrop(crop_in, card_width, card_height)
-
-    # Match single float like "6.5" or "4.5"
-    single_match = re.fullmatch(float_pattern, crop_string)
-    if single_match:
+        crop_x, crop_y = convertInToCrop(crop_in, card_width, card_height)
+    elif re.fullmatch(float_pattern, crop_string):
         num = float(crop_string)
-        return num, num
+        crop_x, crop_y = num, num
+    else:
+        raise ValueError(f"Invalid crop format: '{crop_string}'")
 
-    raise ValueError(f"Invalid crop format: '{crop_string}'")
+    if crop_x < 0 or crop_y < 0 or crop_x >= 100 or crop_y >= 100:
+        raise ValueError(f"Crop '{crop_string}' removes the entire card image or more.")
+    return crop_x, crop_y
 
 def parse_dimension_string(dimension_string: str | None, ppi: int) -> int:
     """
@@ -1107,7 +1120,10 @@ def generate_pdf(
 
     # Sanity check for output images
     if output_images:
-        output_path = get_directory(output_path)
+        candidate = Path(output_path)
+        # A folder picker may select a not-yet-created destination. Preserve it.
+        output_path = str(candidate.parent if (candidate.is_file() or candidate.suffix.lower() == ".pdf") and not candidate.is_dir() else candidate)
+        os.makedirs(output_path, exist_ok=True)
     else:
         if not output_path.lower().endswith(".pdf"):
             raise Exception(f'Cannot save PDF to output path "{output_path}" because it is not a valid PDF file path.')
@@ -1190,32 +1206,11 @@ def generate_pdf(
         effective_inset = lr.inset or default_reg.inset
 
     else:
-        # Resolve aliases
-        card_size = resolve_card_size_alias(layout_config, card_size)
-        paper_size = resolve_paper_size_alias(layout_config, paper_size)
-
-        # Validate card size
-        if card_size not in layout_config.card_sizes:
-            raise Exception(f'Unsupported card size "{card_size}". Try card sizes: {list(layout_config.card_sizes.keys())}.')
+        # Resolve aliases and the configured paper/card variant together.
+        card_size, paper_size, layout_def = resolve_pdf_layout(layout_config, card_size, paper_size, borderless)
         card_size_def = layout_config.card_sizes[card_size]
-
-        # Validate paper size
-        if paper_size not in layout_config.paper_sizes:
-            raise Exception(f'Unsupported paper size "{paper_size}". Try paper sizes: {list(layout_config.paper_sizes.keys())}.')
         paper_size_def = layout_config.paper_sizes[paper_size]
-
-        # Select variant based on borderless flag
         variant = Variant.BORDERLESS if borderless else Variant.DEFAULT
-
-        # Look up layout from nested structure: layouts[paper][card][variant]
-        if paper_size not in layout_config.layouts or card_size not in layout_config.layouts[paper_size]:
-            raise Exception(f'No layout defined for paper "{paper_size}" with card "{card_size}". Add it to layouts.json.')
-
-        card_layouts = layout_config.layouts[paper_size][card_size]
-        if variant.value not in card_layouts:
-            raise Exception(f'No {variant.value} layout defined for paper "{paper_size}" with card "{card_size}". Add it to layouts.json.')
-
-        layout_def = card_layouts[variant.value]
         orientation = layout_def.orientation
         registration_orientation = layout_def.registration_orientation or orientation
         if registration_orientation_override is not None:
@@ -1284,6 +1279,7 @@ def generate_pdf(
 
     # Check skip indices
     # You can only skip valid indices (within the max card count per page)
+    skip_indices = sorted(set(skip_indices))
     clean_skip_indices = [n for n in skip_indices if n < num_cards]
     ignore_skip_indices = [n for n in skip_indices if n >= num_cards]
 
@@ -1497,14 +1493,20 @@ def generate_pdf(
 
         # Save the pages array as a PDF
         if output_images:
+            files = []
             for index, page in enumerate(pages):
-                page.save(os.path.join(output_path, f'page{index + 1}.png'), resolution=math.floor(300 * ppi_ratio), speed=0, subsampling=0, quality=quality)
+                image_path = os.path.abspath(os.path.join(output_path, f'page{index + 1}.png'))
+                page.save(image_path, resolution=math.floor(300 * ppi_ratio), speed=0, subsampling=0, quality=quality)
+                files.append(image_path)
 
             print(f'Generated images: {output_path}')
+            return {"kind": "images", "destination": os.path.abspath(output_path), "files": files}
 
         else:
             pages[0].save(output_path, format='PDF', save_all=True, append_images=pages[1:], resolution=math.floor(300 * ppi_ratio), speed=0, subsampling=0, quality=quality)
             print(f'Generated PDF: {output_path}')
+            absolute_output = os.path.abspath(output_path)
+            return {"kind": "pdf", "destination": absolute_output, "files": [absolute_output]}
 
 
 class OffsetData(BaseModel):

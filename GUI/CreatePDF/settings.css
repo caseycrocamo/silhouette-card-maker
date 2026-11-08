@@ -1,0 +1,488 @@
+.create-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.create-toolbar > div {
+  flex: 1;
+  min-width: 220px;
+}
+#settingsSummary {
+  font-size: 14px;
+  opacity: 0.75;
+  margin-top: 8px;
+}
+#validationSummary,
+#metadataError {
+  color: #fca5a5;
+  margin-top: 12px;
+}
+#conflictWarning {
+  background: #fef3c7;
+  color: #713f12;
+  padding: 14px;
+  border-radius: 8px;
+  margin-top: 14px;
+}
+#completion {
+  background: #f0fdf4;
+  color: #14532d;
+  padding: 16px;
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+  border-radius: 8px;
+}
+#pdfSettingsDialog {
+  border: 1px solid var(--app-border);
+  border-radius: 13px;
+  padding: 0;
+  width: min(1300px, calc(100vw - 48px));
+  max-width: none;
+  height: min(810px, calc(100vh - 48px));
+  max-height: none;
+  background: var(--app-surface);
+  color: var(--app-content);
+  box-shadow: 0 28px 100px #0008;
+  overflow: hidden;
+  font-family: inherit;
+  font-size: 14px;
+}
+#pdfSettingsDialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+#pdfSettingsDialog::backdrop {
+  background: #0009;
+  backdrop-filter: blur(3px);
+}
+
+#pdfSettingsDialog :focus-visible:not(.paper-button) {
+  outline: 3px solid var(--app-content-light);
+  outline-offset: 3px;
+}
+#pdfSettingsDialog [hidden] {
+  display: none !important;
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--app-border);
+  flex-shrink: 0;
+}
+.settings-header h2 {
+  font-size: 20px;
+  font-weight: 650;
+  margin: 0;
+}
+
+.settings-body {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 254px;
+  flex: 1;
+  min-height: 0;
+}
+.settings-sidebar {
+  padding: 24px 16px;
+  background: var(--app-surface-dark);
+  border-right: 1px solid var(--app-border);
+  overflow: auto;
+}
+.settings-search input {
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--app-border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  background: var(--app-surface-dark);
+  color: var(--app-content);
+  font-size: 13px;
+}
+.settings-sidebar nav {
+  margin-top: 24px;
+}
+.category {
+  width: 100%;
+  padding: 12px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  color: var(--app-content-light);
+  margin-bottom: 6px;
+}
+.category.active {
+  color: var(--app-surface-dark);
+  background: var(--app-content-light);
+  font-weight: 600;
+}
+.settings-sidebar > p {
+  font-size: 12px;
+  color: var(--app-content-light);
+  margin: 24px 10px;
+}
+.settings-content {
+  padding: 26px 28px;
+  overflow: auto;
+  min-width: 0;
+  scrollbar-gutter: stable;
+}
+.settings-content section > h2 {
+  font-size: 23px;
+  font-weight: 650;
+  letter-spacing: -0.4px;
+  margin: 0 0 6px;
+}
+.settings-content section > p {
+  font-size: 13px;
+  color: var(--app-content-light);
+  margin: 0 0 24px;
+}
+.settings-rows {
+  border: 1px solid var(--app-border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.setting {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(145px, 205px);
+  align-items: center;
+  column-gap: 18px;
+  row-gap: 5px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--app-border);
+  min-width: 0;
+}
+.setting:last-child {
+  border-bottom: 0;
+}
+.setting > span {
+  grid-column: 1;
+  font-size: 14px;
+  font-weight: 500;
+}
+.setting > .control {
+  grid-column: 2;
+  grid-row: 1;
+}
+.setting small,
+.setting > a {
+  grid-column: 1/-1;
+  font-size: 12px;
+  color: var(--app-content-light);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.setting small:empty {
+  display: none;
+}
+.setting .setting-error {
+  color: #fca5a5;
+}
+.setting > a {
+  color: var(--app-content);
+}
+.control {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-surface);
+  color: var(--app-content);
+  font-size: 13px;
+}
+.control:disabled {
+  background: var(--app-surface-light);
+  color: var(--app-content-light);
+}
+.setting input[type="checkbox"] {
+  appearance: none;
+  width: 34px;
+  height: 20px;
+  border: 0;
+  border-radius: 12px;
+  background: #586274;
+  padding: 3px;
+  justify-self: end;
+  cursor: pointer;
+  position: relative;
+  box-shadow: none;
+}
+.setting input[type="checkbox"]::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: var(--app-surface-dark);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px #0002;
+  transition: transform 0.15s;
+}
+.setting input[type="checkbox"]:checked {
+  background: var(--app-content-light);
+}
+.setting input[type="checkbox"]:checked::before {
+  transform: translateX(14px);
+}
+.setting .paper-button {
+  grid-column: 2;
+  justify-self: end;
+}
+.settings-preview {
+  padding: 28px 22px;
+  background: var(--app-surface-dark);
+  border-left: 1px solid var(--app-border);
+  overflow: auto;
+}
+.settings-preview h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 24px;
+}
+.preview-sides {
+  display: inline-flex;
+  background: var(--app-surface-light);
+  padding: 3px;
+  border-radius: 7px;
+  margin-bottom: 24px;
+}
+
+#pagePreview {
+  min-height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#pagePreview svg {
+  width: 100%;
+  height: auto;
+  max-height: 245px;
+  background: var(--app-surface-dark);
+  box-shadow: 0 5px 18px #0004;
+  border: 1px solid var(--app-border);
+}
+#pagePreview p {
+  font-size: 12px;
+  color: var(--app-content-light);
+  line-height: 1.6;
+}
+#previewSummary {
+  margin: 25px 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 13px 8px;
+  font-size: 12px;
+}
+#previewSummary dt {
+  color: var(--app-content-light);
+}
+#previewSummary dd {
+  text-align: right;
+  color: var(--app-content);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.preview-note {
+  border-top: 1px solid var(--app-border);
+  padding-top: 20px;
+  color: var(--app-content-light);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.settings-footer {
+  border-top: 1px solid var(--app-border);
+  background: var(--app-surface-dark);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  flex-shrink: 0;
+}
+.settings-footer > div {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-content .hidden {
+  display: none !important;
+}
+#dialogErrors {
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 16px;
+}
+.settings-content section + section {
+  margin-top: 24px;
+}
+@media (max-width: 1050px) {
+  .settings-body {
+    grid-template-columns: 170px minmax(0, 1fr) 205px;
+  }
+  .settings-content {
+    padding: 22px 18px;
+  }
+  .setting {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+  .setting > .control {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .setting input[type="checkbox"] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .setting > .paper-button {
+    grid-column: 1;
+  }
+  .settings-preview {
+    padding: 24px 15px;
+  }
+}
+@media (max-width: 720px) {
+  #pdfSettingsDialog {
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+  }
+  .settings-body {
+    grid-template-columns: 1fr;
+    overflow: auto;
+    display: block;
+  }
+  .settings-sidebar {
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--app-border);
+    overflow: visible;
+  }
+  .settings-sidebar nav {
+    display: flex;
+    gap: 4px;
+    margin-top: 12px;
+  }
+  .category {
+    font-size: 12px !important;
+    padding: 10px 6px;
+    margin: 0;
+  }
+  .settings-sidebar > p {
+    display: none;
+  }
+  .settings-content {
+    overflow: visible;
+  }
+  .settings-preview {
+    border-left: 0;
+    border-top: 1px solid var(--app-border);
+  }
+  .settings-preview #pagePreview {
+    max-width: 270px;
+    margin: auto;
+  }
+  .settings-header,
+  .settings-footer {
+    padding: 12px 16px;
+  }
+
+  .settings-content section > h2 {
+    font-size: 21px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #pdfSettingsDialog * {
+    transition: none !important;
+  }
+}
+.settings-group {
+  margin-bottom: 24px;
+}
+.settings-group > h3 {
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--app-content-light);
+  font-weight: 650;
+  margin: 0 0 10px;
+}
+.settings-group > summary {
+  cursor: pointer;
+  display: list-item;
+  font-size: 13px;
+  color: var(--app-content-light);
+  padding: 8px 0;
+}
+.settings-group[open] > summary {
+  margin-bottom: 10px;
+}
+.category svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.setting {
+  padding: 10px 14px;
+  row-gap: 4px;
+}
+.setting small,
+.setting > a {
+  font-size: 11.5px;
+}
+.settings-group {
+  margin-bottom: 20px;
+}
+.settings-content section > p {
+  margin-bottom: 18px;
+}
+
+/* The same palette and typography as the application; control geometry is unchanged. */
+#pdfSettingsDialog {
+  color-scheme: dark;
+}
+.settings-header {
+  background: var(--app-surface);
+}
+.settings-rows {
+  background: var(--app-surface-light);
+}
+.settings-search input,
+.control {
+  font-family: var(--app-font-mono);
+  background: var(--app-surface-dark);
+}
+.settings-search input::placeholder {
+  color: var(--app-content-light);
+  opacity: 0.65;
+}
+.setting > a {
+  color: var(--app-content);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.category:hover:not(.active) {
+  background: var(--app-surface-light);
+}
+.setting input[type="checkbox"]::before {
+  background: var(--app-content-light);
+}
+.setting input[type="checkbox"]:checked::before {
+  background: var(--app-surface-dark);
+}
+/* The sheet is white paper, not a light-theme UI surface. */
+#pagePreview svg {
+  background: #fff;
+  color-scheme: light;
+}
+
+.preview-sides {
+  gap: 8px;
+}

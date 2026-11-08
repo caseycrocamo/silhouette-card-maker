@@ -5,6 +5,8 @@ module.exports = {
     "./CreatePDF/**/*.{html,js}",
     "./Home/**/*.{html,js}",
     "./MagicTheGathering/**/*.{html,js}",
+    "./CardList/**/*.{html,js}",
+    "./Settings/**/*.{html,js}",
     "./shared/**/*.{html,js}",
     "./Utilities/**/*.{html,js}",
     "./styles/**/*.{css,scss}",

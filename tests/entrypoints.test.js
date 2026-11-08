@@ -54,3 +54,12 @@ for (const [platform, script, extension] of [
     assert.throws(() => verifyBinaries({ platform, binDir: dir }), /pdf_worker/);
   });
 }
+
+ test('card worker is discovered and required for packaged binaries', t => {
+  assert.ok(getBuildTargets().includes('card_worker.py'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'card-worker-binaries-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  for (const target of getBuildTargets()) fs.writeFileSync(path.join(dir, executableNameFromScript(target, true)), 'fixture');
+  fs.unlinkSync(path.join(dir, 'card_worker.exe'));
+  assert.throws(() => verifyBinaries({platform: 'win32', binDir: dir}), /card_worker\.exe/);
+ });

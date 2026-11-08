@@ -182,6 +182,12 @@ pip install -r requirements.txt
 
 ### Create the PDF
 
+Open **PDF settings** on the Create PDF screen. Choose Page layout, Image settings, or File settings in the sidebar. The page preview shows positions from the PDF layout engine; use Front and Back to inspect each side. Use the controls to select paper and card sizes, registration marks, image fitting, crop and extension values, output format, and source folders. Crop values accept `mm`, `in`, or `%`; a bare crop value means percent. Extension values accept `mm`, `in`, or layout pixels; a bare extension value means pixels. Choose PDF to select a save path, or PNG pages to select an output folder. The quality setting applies to PDF compression.
+
+![Create PDF settings](/images/create_pdf_settings.png)
+
+The settings draft stays available for the current app session. **Restore defaults** restores CLI defaults and managed source folders in the draft. **Save settings** applies changes. **Cancel**, the close button, or Escape discards changes. Changing print mode does not rebuild card images exported earlier from the Card List workflow.
+
 Put card front images into the `game/front/` folder. Then, put a card back image into the `game/back/` folder.
 
 > [!TIP]

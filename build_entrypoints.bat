@@ -42,6 +42,10 @@ python -m pip install pyinstaller --no-warn-script-location
 if errorlevel 1 exit /b 1
 
 echo.
+echo Exporting GUI settings and layout previews...
+python scripts\export_pdf_catalog.py
+if errorlevel 1 exit /b 1
+
 echo Discovering build targets...
 set TARGET_SCRIPTS=
 

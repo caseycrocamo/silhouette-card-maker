@@ -305,6 +305,14 @@ async function runCreatePdf(argv) {
   return sendRequest({ command: 'create_pdf', args: Array.isArray(argv) ? argv : [] });
 }
 
+async function getPdfCapabilities() {
+  return sendRequest({ command: 'pdf_capabilities' });
+}
+
+async function preflightCreatePdf(argv) {
+  return sendRequest({ command: 'preflight_create_pdf', argv: Array.isArray(argv) ? argv : [] });
+}
+
 async function runOffsetPdf({ pdfPath, xOffset, yOffset, angle, save } = {}) {
   const req = { command: 'offset_pdf' };
   if (pdfPath !== undefined && pdfPath !== null && pdfPath !== '') {
@@ -328,5 +336,7 @@ module.exports = {
   stopPdfWorker,
   stopPdfWorkerForUpdate,
   runCreatePdf,
+  getPdfCapabilities,
+  preflightCreatePdf,
   runOffsetPdf
 };

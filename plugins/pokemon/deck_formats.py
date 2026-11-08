@@ -58,3 +58,20 @@ def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable) -> Non
     else:
         raise ValueError('Unrecognized deck format.')
 
+
+def parse_limitless_result(text: str) -> dict:
+    """Parse GUI lists without silently discarding malformed card lines."""
+    from re import fullmatch
+    entries, errors, ignored = [], [], []
+    for line_no, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line or fullmatch(r'(?:Pok[eé]mon|Trainer|Energy):\s*\d+', line, flags=2) or fullmatch(r'Total Cards:\s*\d+', line, flags=2):
+            ignored.append(line_no)
+            continue
+        match = fullmatch(r'([1-9]\d*)\s+(.+?)\s+([A-Za-z0-9_-]+)\s+([A-Za-z0-9_-]*\d[A-Za-z0-9_-]*)', line)
+        if not match:
+            errors.append({'line': line_no, 'message': 'Use quantity, card name, set code, and card number.'})
+            continue
+        qty, name, set_code, number = match.groups()
+        entries.append({'id': f'line-{line_no}', 'sourceLine': line_no, 'name': name, 'qty': int(qty), 'setCode': set_code.upper(), 'number': number})
+    return {'entries': entries, 'errors': errors, 'ignored': ignored}

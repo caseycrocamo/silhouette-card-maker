@@ -68,3 +68,9 @@ Energy: 20
 1 Mist Energy TEF 161
 1 Legacy Energy TWM 167
 ```
+
+## Desktop app
+
+On Home, choose **Use a Limitless deck list** under Pokémon. Paste the deck list and select **Search Cards**. The app reports invalid lines and missing images. Correct these before creating the PDF. The desktop app requires an exact printing and does not silently choose another set.
+
+Pokémon TCG and Pocket use this same flow. Pocket images can have lower print quality. The PDF page supports an optional user-supplied common back image; the app does not include a Pokémon back.

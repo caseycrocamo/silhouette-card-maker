@@ -40,7 +40,8 @@ function getFileHash(filePath) {
 }
 
 function getCurrentHash() {
-  const buildInputs = [...getPythonFiles(), 'requirements.txt', 'build_entrypoints.bat',
+  const pluginInputs = fs.readdirSync(path.join(PROJECT_ROOT, 'plugins/pokemon')).filter(file => file.endsWith('.py')).map(file => 'plugins/pokemon/' + file);
+  const buildInputs = [...getPythonFiles(), ...pluginInputs, 'requirements.txt', 'build_entrypoints.bat',
     'build_entrypoints.sh', 'check_and_build_entrypoints.js'];
   const hashes = buildInputs.map(file => {
     const hash = getFileHash(path.join(PROJECT_ROOT, file));

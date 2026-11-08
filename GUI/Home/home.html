@@ -26,17 +26,20 @@
 
         <!-- Header -->
     <header class="paper-element text-center mb-12 p-8">
-            <h1 class="text-4xl font-bold text-primary-dark mb-4">Welcome to Silhouette Card Maker</h1>
-            <p class="text-primary text-lg mb-8">Create custom playing cards for your favorite games</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                <button class="paper-button flex items-center justify-center gap-2" 
-                        onclick="location.href='../MagicTheGathering/decklist.html'">
-                    Magic the Gathering
-                </button>
-                <button class="paper-button flex items-center justify-center gap-2"
-                        onclick="location.href='../MagicTheGathering/text_translation.html'">
-                    MTG Text Translation
-                </button>
+            <h1 class="text-4xl font-bold text-primary-dark mb-4">Choose your game</h1>
+            <p class="text-primary text-lg mb-8">Build a card list, then create a print PDF.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <section class="paper-surface p-6">
+                    <h2 class="text-2xl font-semibold mb-6">Magic: The Gathering</h2>
+                    <div class="flex flex-col gap-4">
+                        <a class="paper-button" href="../CardList/decklist.html?game=mtg">Search cards and select printings</a>
+                        <a class="paper-button" href="../MagicTheGathering/text_translation.html">Text Translation</a>
+                    </div>
+                </section>
+                <section class="paper-surface p-6">
+                    <h2 class="text-2xl font-semibold mb-6">Pokémon</h2>
+                    <a class="paper-button block" href="../CardList/decklist.html?game=pokemon">Use a Limitless deck list</a>
+                </section>
             </div>
     </header>
 </body>

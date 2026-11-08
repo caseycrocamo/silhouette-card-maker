@@ -2,6 +2,7 @@
 const { ipcRenderer } = require('electron');
 const path = require('path');
 const updateControls = require(path.join(__dirname, '../shared/updateControls.js'));
+const { readPageSize, savePageSize } = require(path.join(__dirname, '../shared/printingPreferences.js'));
 
 function formatLastChecked(value) {
     if (!value) return 'Never';
@@ -75,6 +76,21 @@ function loadOffsetData() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    const printingPageSize = document.getElementById('printingPageSize');
+    const printingStatus = document.getElementById('printingPreferencesStatus');
+    printingPageSize.value = readPageSize();
+    document.getElementById('printingPreferencesForm').addEventListener('submit', event => {
+        event.preventDefault();
+        try {
+            printingPageSize.value = savePageSize(printingPageSize.value);
+            printingPageSize.setAttribute('aria-invalid', 'false');
+            printingStatus.textContent = 'Saved. Applies the next time you open the printing selector.';
+        } catch (error) {
+            printingPageSize.setAttribute('aria-invalid', 'true');
+            printingStatus.textContent = error.message || 'Could not save the printing setting.';
+            printingPageSize.focus();
+        }
+    });
     const unsubscribeUpdates = updateControls.subscribe(renderUpdateState);
     updateControls.refresh();
     document.getElementById('checkUpdatesBtn').addEventListener('click', async event => {

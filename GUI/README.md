@@ -135,7 +135,19 @@ Once Python and Node.js are installed, continue with the project setup steps bel
 
 The GUI will open in a new window. You can generate PDFs, view images, and use all available features.
 
+### Create PDF settings
+
+Open **PDF settings** on the Create PDF screen. The preferences window has Page layout, Image settings, and File settings categories, a search field, and a page preview. The controls use the worker's available paper, card, and specialty layouts. Use the destination controls to choose a PDF file or a folder for PNG pages. Crop values accept `mm`, `in`, or `%`; a bare crop value means percent. Extension values accept `mm`, `in`, or layout pixels; a bare extension value means pixels. PPI must be a whole number. **Restore defaults** changes the draft to CLI defaults and managed image folders. **Save settings** applies the draft. **Cancel**, the close button, or Escape discards the draft. Settings stay in the current app session.
+
+Run `npm run test:pdf-settings-ui` from the repository root to test the screen with a real Electron window and frozen worker. The test uses temporary source folders and output.
+
+![Create PDF settings](../hugo/static/images/create_pdf_settings.png)
+
+Changing between fronts only and fronts and backs changes PDF creation. It does not rebuild card images already exported from a deck list. Source folder controls also change the image lists and file actions on this screen.
+
 ## Development Notes
+- Reuse UI components from `GUI/shared/` and `GUI/styles/tailwind.css`. Static buttons use `paper-button` with optional `paper-button--compact` or `paper-button--icon`. For buttons created in JavaScript, use `createButton({ text, size, onClick })` from `GUI/shared/button.js`. Native button semantics, disabled states, focus, hover, and pressed styling stay shared.
+- Create PDF settings and layout diagrams load from `GUI/shared/pdfCatalog.json`, without waiting for Python. Both native entrypoint build scripts regenerate the catalog from the Python CLI and layout engine. After changing creation options or layouts, run `python scripts/export_pdf_catalog.py` with the project dependencies installed. The Python catalog parity test checks that the bundled data matches the engine.
 - The Electron app communicates with Python via IPC and can run either the script or the compiled executable.
 - For advanced features, see the main project README and the scripts in the root directory.
 
@@ -215,3 +227,23 @@ checks remain separate release qualification steps.
 ---
 
 For more help, see the main project README or contact the project maintainer.
+
+### Pokémon and shared card lists
+
+Choose Pokémon on Home, then select **Use a Limitless deck list**. Paste lines in the form `3 Charcadet SSP 32`. Category headers and blank lines are allowed. Each card needs a quantity, name, set code, and card number. Pokémon TCG and Pocket use the same input area. Review errors and retry missing images before selecting **Next: Create PDF**.
+
+Pokémon starts with card fronts only. To print a common back, enable backs on the PDF page and choose your own image. Pocket image sources can have lower print quality. Exact printings that cannot be found produce an error instead of substituting another set.
+
+MTG card lists and Text Translation share one game card on Home. The current numbered navigation stays in place. Each game's draft and workflow are saved separately for the current app session.
+
+### Choose an MTG printing
+
+Click an MTG card image to open the printing side panel. You can also focus the image and press Enter or Space. The italic reminder at the top of the page explains this action. Each printing has its own image, set name, set code, collector number, and treatment. Search by set or collector number, or sort the list. Select a row to inspect its larger preview. Cards with two faces have Front and Back controls.
+
+The panel starts with 25 printings. Select **Load more** to show the next batch. The link disappears when no more printings remain. Change the batch size under **Settings → Card printing → Printings per load**. Save a whole number from 1 to 200; it applies the next time you open the selector and stays saved when the app closes.
+
+A checkmark shows the choice in the panel. Select **Use this printing** to apply it to that card entry. The quantity stays the same. **Cancel**, **Close**, and Escape keep the current printing. If printing data or an image fails to load, use its retry action.
+
+MTG card images are cached in memory for the app session. The printing panel, deck preview, and image export share each downloaded image. Changing pages keeps the cache. Closing all app windows or quitting clears it. This cache does not write files to disk.
+
+The card worker runs separately from the PDF worker. Development can use the project virtual environment. Packaged apps require the `card_worker` executable (or `card_worker.exe` on Windows) in `GUI/bin`, with no local Python installation. The standard entrypoint build discovers this worker. Build and copy entrypoints before making a release.

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Card List - Silhouette Card Maker</title>
+    <link rel="stylesheet" href="../styles/main.css" />
+    <link rel="stylesheet" href="../MagicTheGathering/printingSelector.css" />
+    <link rel="stylesheet" href="decklist.css" />
+    <script src="../shared/navbar.js"></script>
+    <script src="../shared/loadingOverlay.js"></script>
+    <script defer src="decklist.js"></script>
+  </head>
+  <body class="min-h-screen bg-surface text-content">
+    <nav-bar current-step="2"></nav-bar>
+    <main class="card-list-page mx-auto px-4 pt-24 pb-8 max-w-7xl">
+      <header class="mb-8 flex flex-wrap justify-between items-start gap-4">
+        <div>
+          <h1 id="gameTitle" class="text-4xl font-bold mb-3">Card list</h1>
+          <p>Paste a deck list. Review each card before you create the PDF.</p>
+          <p id="printingHint" class="text-sm text-content-light mt-2" hidden>
+            <em>Click a card image to change its printing.</em>
+          </p>
+        </div>
+        <a href="../Home/home.html" class="paper-button">Change game</a>
+      </header>
+      <div class="card-list-workspace grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <section class="card-list-editor paper-element p-6">
+          <form id="longForm" class="space-y-4">
+            <label for="longText" class="block text-xl font-semibold"
+              >Deck list</label
+            >
+            <p id="syntaxHelp" class="text-sm text-content-light"></p>
+            <textarea
+              id="longText"
+              class="paper-input"
+              rows="12"
+              aria-describedby="syntaxHelp"
+              spellcheck="false"
+            ></textarea
+            ><button id="searchBtn" class="paper-button w-full" type="submit">
+              Search Cards</button
+            ><button
+              id="exportBtn"
+              class="paper-button w-full"
+              type="button"
+              disabled
+            >
+              Export Decklist
+            </button>
+          </form>
+        </section>
+        <section class="card-list-results paper-element p-6 lg:col-span-2">
+          <h2 class="text-xl font-semibold mb-3">Search results</h2>
+          <p
+            id="resultStatus"
+            class="text-sm text-content-light mb-5"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <div id="output" class="min-h-[200px]"></div>
+        </section>
+      </div>
+      <section class="card-list-workflow paper-element p-6 mt-8">
+        <h2 class="text-xl font-semibold mb-4">Printing workflow</h2>
+        <div id="workflow"></div>
+        <p id="workflowHelp" class="text-sm text-content-light mt-3"></p>
+        <button id="nextCreatePdfBtn" class="paper-button mt-6" disabled>
+          Next: Create PDF
+        </button>
+        <p
+          id="exportError"
+          class="text-red-300 mt-3"
+          role="alert"
+          tabindex="-1"
+        ></p>
+      </section>
+    </main>
+  </body>
+</html>

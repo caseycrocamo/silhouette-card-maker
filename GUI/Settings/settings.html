@@ -18,6 +18,17 @@
         <!-- Header -->
         <h1 class="text-4xl font-bold text-primary-dark mb-8">Settings</h1>
 
+        <section class="paper-element mb-12 p-6" aria-labelledby="cardPrintingHeading">
+            <h2 id="cardPrintingHeading" class="text-xl font-semibold text-primary-dark mb-4">Card printing</h2>
+            <form id="printingPreferencesForm" class="space-y-4 max-w-md">
+                <label for="printingPageSize" class="block font-medium">Printings per load</label>
+                <p id="printingPageSizeHelp" class="text-sm text-content-light">Load this many printings when the selector opens and each time you select Load more. Enter 1 to 200. The default is 25.</p>
+                <input id="printingPageSize" type="number" min="1" max="200" step="1" required value="25" class="paper-input" aria-describedby="printingPageSizeHelp printingPreferencesStatus">
+                <button type="submit" class="paper-button paper-button--compact">Save</button>
+                <p id="printingPreferencesStatus" class="text-sm text-content-light" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+
         <section class="paper-element mb-12 p-6" aria-labelledby="applicationUpdatesHeading">
             <h2 id="applicationUpdatesHeading" class="text-xl font-semibold text-primary-dark mb-2">Application updates</h2>
             <p class="mb-5 text-content-light">Check for new versions and choose when to download and install them.</p>

@@ -1,0 +1,48 @@
+/* Keep the deck in view beside the printing drawer on wide screens. The native
+   dialog still owns focus and makes the background workspace inert. */
+@media (min-width: 1101px) {
+  body:has(#printingSelectorDialog[open]) .card-list-page {
+    position: fixed;
+    inset: 72px auto 0 0;
+    box-sizing: border-box;
+    width: calc(100vw - min(72vw, 1080px));
+    max-width: none;
+    margin: 0;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  body:has(#printingSelectorDialog[open]) .card-list-page > header {
+    margin-bottom: 20px;
+  }
+
+  body:has(#printingSelectorDialog[open]) .card-list-page > header h1 {
+    font-size: 24px;
+  }
+
+  body:has(#printingSelectorDialog[open]) .card-list-page > header p,
+  body:has(#printingSelectorDialog[open]) .card-list-page > header > a,
+  body:has(#printingSelectorDialog[open]) .card-list-editor,
+  body:has(#printingSelectorDialog[open]) .card-list-workflow {
+    display: none;
+  }
+
+  body:has(#printingSelectorDialog[open]) .card-list-workspace {
+    display: block;
+  }
+
+  body:has(#printingSelectorDialog[open]) .card-list-results {
+    min-width: 0;
+    padding: 16px;
+  }
+
+  body:has(#printingSelectorDialog[open]) .card-list-results #output > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body:has(#printingSelectorDialog[open]) .card-list-results .card-image-frame,
+  body:has(#printingSelectorDialog[open]) .card-list-results .paper-button--image {
+    max-width: 216px;
+    margin-inline: auto;
+  }
+}

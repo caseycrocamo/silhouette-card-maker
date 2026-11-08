@@ -38,6 +38,9 @@ echo "Installing PyInstaller..."
 python -m pip install pyinstaller --no-warn-script-location
 
 echo ""
+echo "Exporting GUI settings and layout previews..."
+python scripts/export_pdf_catalog.py
+
 echo "Discovering build targets..."
 TARGET_SCRIPTS=()
 TARGET_LIST=$(node check_and_build_entrypoints.js --list-targets)

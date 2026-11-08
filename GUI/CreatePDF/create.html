@@ -1,94 +1,207 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Silhouette Card Maker - Create PDF</title>
-    <link rel="stylesheet" href="../styles/main.css">
-    <script type="text/javascript" src="../shared/navbar.js"></script>
-    <script type="text/javascript" src="../shared/loadingOverlay.js"></script>
-    <script type="text/javascript" src="create.js"></script>
-</head>
-<body class="min-h-screen bg-surface text-content">
+    <link rel="stylesheet" href="../styles/main.css" />
+    <script src="../shared/navbar.js"></script>
+    <script src="../shared/loadingOverlay.js"></script>
+    <script src="create.js"></script>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body class="min-h-screen bg-surface text-content">
     <nav-bar current-step="3"></nav-bar>
-
-    <!-- Main Content -->
     <main class="container mx-auto px-4 pt-24 pb-8 max-w-6xl">
-        <!-- Front Files Section -->
-        <section class="paper-element mb-12 p-6">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-semibold text-primary-dark">game/front folder images</h2>
-                <button class="paper-button" id="clearFrontBtn">Clear Front Images</button>
-            </div>
-            <div id="frontImagesGrid" class="paper-surface grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 rounded-lg p-4 max-h-[400px] overflow-y-auto">
-                <!-- Images will be dynamically added here -->
-            </div>
-        </section>
-
-        <!-- Double-Sided Images Section -->
-        <section id="doubleSidedSection" class="paper-element mb-12 p-6">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-semibold text-primary-dark">game/double_sided folder images</h2>
-                <div class="flex gap-2">
-                    <button class="paper-button" id="uploadDoubleSidedBtn">Upload Double-Sided Image(s)</button>
-                    <button class="paper-button" id="clearDoubleSidedBtn">Clear Double-Sided Images</button>
-                </div>
-            </div>
-            <div id="onlyFrontsConflictWarning" class="hidden mb-4 p-3 rounded-lg bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm">
-                "Only Fronts" is enabled but there are double-sided images present. The PDF will fail unless you clear the double-sided images or uncheck "Only Fronts".
-            </div>
-            <div id="doubleSidedImagesGrid" class="paper-surface grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 rounded-lg p-4 max-h-[400px] overflow-y-auto">
-                <!-- Images will be dynamically added here -->
-            </div>
-        </section>
-
-        <!-- Back Image Section -->
-        <section id="backImageSection" class="paper-element mb-12 p-6">
-            <h2 class="text-xl font-semibold text-primary-dark mb-6">game/back folder image</h2>
-            <div id="backImagePreview" class="flex items-center gap-3 mb-6">
-            </div>
-            <div class="flex gap-2">
-                <button class="paper-button" id="uploadBackBtn">Upload Back Image</button>
-                <button class="paper-button" id="clearBackBtn">Clear Back Image</button>
-            </div>
-        </section>
-
-        <!-- PDF Creation Section -->
-        <section class="paper-element p-6 max-w-xl mx-auto">
-            <h2 class="text-xl font-semibold text-primary-dark mb-6">PDF Creation Options</h2>
-            
-            <!-- Checkboxes -->
-            <div class="space-y-4 mb-6">
-                <label class="flex items-center space-x-3 p-3 bg-surface rounded-lg hover:bg-surface/80 transition-colors cursor-pointer group">
-                    <input type="checkbox" id="onlyFrontsCheckbox" class="w-4 h-4 rounded border-2 border-primary-light/30 text-primary focus:ring-2 focus:ring-primary-light checked:border-primary group-hover:border-primary transition-colors duration-200">
-                    <span class="text-content group-hover:text-content-dark transition-colors duration-200">Only Fronts (--only_fronts)</span>
-                </label>
-                
-                <label class="flex items-center space-x-3 p-3 bg-surface rounded-lg hover:bg-surface/80 transition-colors cursor-pointer group">
-                    <input type="checkbox" id="skip4Checkbox" class="w-4 h-4 rounded border-2 border-primary-light/30 text-primary focus:ring-2 focus:ring-primary-light checked:border-primary group-hover:border-primary transition-colors duration-200">
-                    <span class="text-content group-hover:text-content-dark transition-colors duration-200">Skip 4 (--skip 4)</span>
-                </label>
-
-                <label class="flex items-center space-x-3 p-3 bg-surface rounded-lg hover:bg-surface/80 transition-colors cursor-pointer group">
-                    <input type="checkbox" id="loadOffsetCheckbox" class="w-4 h-4 rounded border-2 border-primary-light/30 text-primary focus:ring-2 focus:ring-primary-light checked:border-primary group-hover:border-primary transition-colors duration-200">
-                    <span class="text-content group-hover:text-content-dark transition-colors duration-200">Load Offset (--load_offset)</span>
-                </label>
-            </div>
-
-            <!-- Arguments Input -->
-            <div class="space-y-4">
-                <div class="relative">
-                    <input type="text" 
-                           id="pdfArgs" 
-                           placeholder="Enter additional arguments for create_pdf..." 
-                           class="paper-input">
-                </div>
-                
-                <button class="paper-button w-full mt-6" id="createPdfBtn">
-                    Create PDF
-                </button>
-            </div>
-        </section>
+      <section class="paper-element mb-6 p-6">
+        <h2 class="text-xl font-semibold text-primary-dark mb-4">
+          Front images
+        </h2>
+        <div class="flex gap-2 mb-3">
+          <button id="clearFrontBtn" class="paper-button">
+            Clear front images
+          </button>
+        </div>
+        <div
+          id="frontImagesGrid"
+          class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 max-h-[300px] overflow-y-auto"
+        ></div>
+      </section>
+      <section id="doubleSidedSection" class="paper-element mb-6 p-6">
+        <h2 class="text-xl font-semibold text-primary-dark mb-4">
+          Double-sided images
+        </h2>
+        <div class="flex gap-2 mb-3">
+          <button id="uploadDoubleSidedBtn" class="paper-button">
+            Upload double-sided images</button
+          ><button id="clearDoubleSidedBtn" class="paper-button">
+            Clear double-sided images
+          </button>
+        </div>
+        <div
+          id="doubleSidedImagesGrid"
+          class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 max-h-[300px] overflow-y-auto"
+        ></div>
+      </section>
+      <section id="backImageSection" class="paper-element mb-6 p-6">
+        <h2 class="text-xl font-semibold text-primary-dark mb-4">
+          Generic back
+        </h2>
+        <div id="backImagePreview"></div>
+        <div class="flex gap-2 mt-3">
+          <button id="uploadBackBtn" class="paper-button">
+            Choose back image</button
+          ><button id="clearBackBtn" class="paper-button">
+            Clear back image
+          </button>
+        </div>
+      </section>
+      <section class="paper-element p-6">
+        <div class="create-toolbar">
+          <div>
+            <h2 class="text-xl font-semibold">Create your file</h2>
+            <p id="settingsSummary">Loading PDF settings…</p>
+          </div>
+          <button id="openSettings" class="paper-button" disabled>
+            PDF settings</button
+          ><button id="createPdfBtn" class="paper-button" disabled>
+            Create PDF
+          </button>
+        </div>
+        <p id="metadataError" class="hidden" role="alert"></p>
+        <div id="conflictWarning" class="hidden" role="alert">
+          <span id="conflictText"></span
+          ><button id="showDoubleSided" class="paper-button">
+            Show double-sided controls
+          </button>
+        </div>
+        <div id="validationSummary" role="alert"></div>
+        <div id="completion" class="hidden" aria-live="polite"></div>
+      </section>
     </main>
-</body>
+    <dialog id="pdfSettingsDialog" aria-labelledby="settingsTitle">
+      <header class="settings-header">
+        <h2 id="settingsTitle">PDF settings</h2>
+        <button
+          id="closeSettings"
+          aria-label="Cancel settings changes"
+          class="paper-button paper-button--icon"
+        >
+          ×
+        </button>
+      </header>
+      <div class="settings-body">
+        <aside class="settings-sidebar">
+          <label class="settings-search"
+            ><span class="sr-only">Search PDF settings</span
+            ><input
+              id="settingsSearch"
+              type="search"
+              placeholder="Search settings…"
+          /></label>
+          <nav aria-label="PDF settings categories">
+            <button
+              data-category="page"
+              class="category active"
+              aria-current="page"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <rect x="5" y="3" width="14" height="18" rx="2" />
+                <path d="M9 8h6M9 12h6M9 16h4" />
+              </svg>
+              <span>Page layout</span></button
+            ><button data-category="image" class="category">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="16" rx="3" />
+                <path d="m3 17 6-5 4 3 3-4 5 5" />
+              </svg>
+              <span>Image settings</span></button
+            ><button data-category="file" class="category">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <path d="M4 6h6l2 3h8v11H4z" />
+              </svg>
+              <span>File settings</span>
+            </button>
+          </nav>
+          <p>For this PDF project</p>
+        </aside>
+        <div class="settings-content" id="settingsPanel">
+          <section data-settings-category="page">
+            <h2 tabindex="-1">Page layout</h2>
+            <p>Set the sheet size and how your cards are placed.</p>
+            <div id="pageControls" class="settings-rows"></div>
+          </section>
+          <section data-settings-category="image" hidden>
+            <h2 tabindex="-1">Image settings</h2>
+            <p>Adjust image fit, edges, and bleed.</p>
+            <div id="imageControls" class="settings-rows"></div>
+          </section>
+          <section data-settings-category="file" hidden>
+            <h2 tabindex="-1">File settings</h2>
+            <p>Choose output quality, destinations, and source folders.</p>
+            <div id="fileControls" class="settings-rows"></div>
+          </section>
+          <p id="settingsNoResults" hidden>No settings match your search.</p>
+          <div id="dialogErrors" role="alert"></div>
+        </div>
+        <aside class="settings-preview" aria-label="Page preview">
+          <h3>Page preview</h3>
+          <div class="preview-sides" role="group" aria-label="Preview side">
+            <button
+              id="previewFront"
+              class="paper-button paper-button--compact"
+              aria-pressed="true"
+            >
+              Front</button
+            ><button
+              id="previewBack"
+              class="paper-button paper-button--compact"
+              aria-pressed="false"
+            >
+              Back
+            </button>
+          </div>
+          <div id="pagePreview" aria-live="polite"><p>Loading layout…</p></div>
+          <dl id="previewSummary"></dl>
+          <p class="preview-note">
+            Layout diagram. Image adjustments and printer offsets are applied to
+            the final output.
+          </p>
+        </aside>
+      </div>
+      <footer class="settings-footer">
+        <button id="resetSettings" class="paper-button paper-button--compact">
+          Restore defaults
+        </button>
+        <div>
+          <button
+            id="cancelSettings"
+            class="paper-button paper-button--compact"
+          >
+            Cancel</button
+          ><button id="saveSettings" class="paper-button paper-button--compact">
+            Save settings
+          </button>
+        </div>
+      </footer>
+    </dialog>
+  </body>
 </html>

@@ -4,12 +4,15 @@
   "scripts": {
     "build:entrypoints": "node -e \"process.platform === 'win32' ? require('child_process').execSync('build_entrypoints.bat', {stdio: 'inherit'}) : require('child_process').execSync('./build_entrypoints.sh', {stdio: 'inherit'})\"",
     "copy:entrypoints": "node check_and_build_entrypoints.js --copy",
-    "test": "node --test tests/entrypoints.test.js tests/jobActivity.test.js tests/paths.test.js tests/pdfWorkerShutdown.test.js tests/release.test.js tests/releaseProvider.test.js tests/updateControls.test.js tests/updateIpc.test.js tests/updateService.test.js tests/decklistPrinting.test.js",
+    "test": "node --test tests/entrypoints.test.js tests/jobActivity.test.js tests/paths.test.js tests/pdfWorkerShutdown.test.js tests/release.test.js tests/releaseProvider.test.js tests/updateControls.test.js tests/updateIpc.test.js tests/updateService.test.js tests/decklistPrinting.test.js tests/pdfCreationSettings.test.js tests/pdfCreationIpc.test.js tests/cardWorkerClient.test.js tests/cardList.test.js tests/cardNavigation.test.js tests/printingSelector.test.js tests/cardImageCache.test.js",
     "check:entrypoints": "node check_and_build_entrypoints.js",
     "build:css": "cd GUI && npm run build:css",
     "build:gui": "node build_gui.js",
     "build-all": "npm run build:entrypoints && npm run copy:entrypoints && npm run build:css && npm run build:gui",
     "dev": "npm run check:entrypoints && cd GUI && npm run dev",
-    "test:integration": "python3 scripts/test-integration.py"
+    "test:integration": "python3 scripts/test-integration.py",
+    "test:pdf-settings-ui": "GUI/node_modules/.bin/electron tests/pdf-settings-smoke.cjs",
+    "test:card-list-ui": "GUI/node_modules/.bin/electron tests/card-list-smoke.cjs",
+    "test:printing-selector-ui": "GUI/node_modules/.bin/electron tests/printing-selector-smoke.cjs"
   }
 }
