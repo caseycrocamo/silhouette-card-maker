@@ -8,8 +8,8 @@ echo Checking Python version...
 python --version
 
 echo.
-echo Note: If using Python 3.13+, some packages may need older versions.
-echo Consider using Python 3.11 or 3.12 for best compatibility.
+echo Use Python 3.12 or later.
+echo Dependencies are pinned in requirements.txt.
 echo.
 
 echo Creating virtual environment...
@@ -33,14 +33,7 @@ if errorlevel 1 exit /b 1
 
 echo.
 echo Installing dependencies from requirements.txt...
-REM Install all packages except numpy first
-python -m pip install click==8.1.8 natsort==8.4.0 Pillow==11.3.0 pydantic==2.11.1 Requests==2.32.3 pypdfium2==4.30.0 split-image==2.0.1 --no-warn-script-location
-if errorlevel 1 exit /b 1
-
-echo.
-echo Installing numpy (using compatible version)...
-REM Try to install numpy from pre-built wheel, fall back to older version if needed
-python -m pip install numpy --only-binary :all: --no-warn-script-location || python -m pip install numpy==1.26.4 --no-warn-script-location
+python -m pip install -r requirements.txt --no-warn-script-location
 if errorlevel 1 exit /b 1
 
 echo.
