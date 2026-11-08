@@ -24,8 +24,10 @@ from plugins.netrunner.api import request_api, get_handle_card
 class TestTextFormat:
     """Test text format parsing."""
 
-    def test_parse_text(self):
-        """Test parsing text format."""
+    def test_parse_text(self, monkeypatch):
+        """Parse known set names without a live set catalogue."""
+        monkeypatch.setattr('plugins.netrunner.deck_formats.is_valid_set',
+                            lambda name: name in {'System Gateway', 'Midnight Sun'})
         deck_text = """Agenda (3)
 1x Longevity Serum (System Gateway)
 2x Regenesis (Midnight Sun)"""

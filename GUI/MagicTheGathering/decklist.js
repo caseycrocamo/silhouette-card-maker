@@ -168,6 +168,8 @@ window.onload = function () {
                     const data = cards[i].cardData;
                     if (data.error) continue;
 
+                    for (let copy = 0; copy < (cards[i].qty || 1); copy++) {
+
                     const isDoubleSided = (workflow === 'double_sided')
                         && DOUBLE_SIDED_LAYOUTS.includes(data.layout)
                         && data.card_faces?.[0]?.image_uris?.png
@@ -202,6 +204,7 @@ window.onload = function () {
                         fs.writeFileSync(path.join(frontDir, fileName), buffer);
                     }
                     imgCount++;
+                    }
                 }
             }
 
@@ -303,9 +306,7 @@ window.onload = function () {
             // Extract card name (remaining text before any extra info)
             // todo: bug for boggart trawler // boggart bog (mdfc)
             name = line.split(/\s*\[/)[0].trim();
-            for (let i = 0; i < qty; i++) {
-                cards.push({ name, requestedSetCode: setCode, requestedSetNumber: setNumber, qty, cardData: null, selectedSetCode: setCode, selectedSetNumber: setNumber });
-            }
+            cards.push({ name, requestedSetCode: setCode, requestedSetNumber: setNumber, qty, cardData: null, selectedSetCode: setCode, selectedSetNumber: setNumber });
         });
         console.log('Parsed cards:', cards);
         document.getElementById('output').innerText = 'Loading...';
@@ -420,6 +421,9 @@ function renderCardResults() {
                         const dropdown = document.createElement('select');
                         dropdown.id = `set-select-${i}`;
                         dropdown.className = 'card-set-dropdown';
+                        const setError = document.createElement('span');
+                        setError.id = `set-error-${i}`;
+                        setError.className = 'text-sm text-red-600';
                         // Sort set codes alphabetically by set name
                         const sortedSetCodes = Object.keys(sets).sort((a, b) => sets[a].localeCompare(sets[b]));
                         for (const setCode of sortedSetCodes) {
@@ -431,9 +435,18 @@ function renderCardResults() {
                             }
                             dropdown.appendChild(option);
                         }
+                        let printingRequestId = 0;
                         dropdown.addEventListener('change', async function () {
                             const newSet = this.value;
+                            const requestId = ++printingRequestId;
                             const newData = await fetchCardData(data.name, newSet);
+                            if (requestId !== printingRequestId || !cards.includes(cardObj)) return;
+                            if (newData.error) {
+                                dropdown.value = (cardObj.selectedSetCode || data.set || '').toLowerCase();
+                                setError.textContent = `Unable to load the ${newSet.toUpperCase()} printing. The previous printing is still selected.`;
+                                return;
+                            }
+                            setError.textContent = '';
                             let newImgUrl = newData.image_uris ? newData.image_uris.png : (newData.card_faces && newData.card_faces[0].image_uris ? newData.card_faces[0].image_uris.png : null);
                             let newSetCode = newData.set ? newData.set.toUpperCase() : '';
                             document.getElementById(`card-img-${i}`).src = newImgUrl || '';
@@ -453,6 +466,7 @@ function renderCardResults() {
                         const setDropdownContainer = document.getElementById(`set-dropdown-container-${i}`);
                         setDropdownContainer.innerHTML = '';
                         setDropdownContainer.appendChild(dropdown);
+                        setDropdownContainer.appendChild(setError);
                         const setCodeElem = document.getElementById(`card-set-${i}`);
                         setCodeElem.style.cursor = 'pointer';
                         setCodeElem.title = 'Click to change set';

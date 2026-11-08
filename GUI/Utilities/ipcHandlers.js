@@ -81,7 +81,7 @@ ipcMain.handle('offset-data-exists', async () => {
 });
 
 ipcMain.handle('get-default-calibration-pdf', async () => {
-  return path.join(getCalibrationDir(), 'letter_calibration.pdf');
+  return path.join(getCalibrationDir(), 'letter-calibration.pdf');
 });
 
 ipcMain.handle('select-pdf-file', async () => {

@@ -1483,8 +1483,7 @@ def generate_pdf(
             )
 
         if len(pages) == 0:
-            print('No pages were generated')
-            return
+            raise ValueError('No pages were generated. Add at least one valid front image.')
 
         # Load saved offset if available
         if load_offset:
@@ -1509,8 +1508,8 @@ def generate_pdf(
 
 
 class OffsetData(BaseModel):
-    x_offset: int
-    y_offset: int
+    x_offset: float
+    y_offset: float
     angle_offset: float = 0.0
 
 def save_offset(x_offset: int, y_offset: int, angle_offset: float = 0.0) -> None:

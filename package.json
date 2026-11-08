@@ -2,13 +2,14 @@
   "name": "silhouette-card-maker-root",
   "private": true,
   "scripts": {
-  "build:entrypoints": "node -e \"process.platform === 'win32' ? require('child_process').execSync('build_entrypoints.bat', {stdio: 'inherit'}) : require('child_process').execSync('./build_entrypoints.sh', {stdio: 'inherit'})\"",
-  "copy:entrypoints": "node check_and_build_entrypoints.js --copy",
-  "test": "node --test tests/entrypoints.test.js tests/jobActivity.test.js tests/paths.test.js tests/pdfWorkerShutdown.test.js tests/release.test.js tests/releaseProvider.test.js tests/updateControls.test.js tests/updateIpc.test.js tests/updateService.test.js",
-  "check:entrypoints": "node check_and_build_entrypoints.js",
-  "build:css": "cd GUI && npm run build:css",
-  "build:gui": "node build_gui.js",
-  "build-all": "npm run build:entrypoints && npm run copy:entrypoints && npm run build:css && npm run build:gui",
-  "dev": "npm run check:entrypoints && cd GUI && npm run dev"
+    "build:entrypoints": "node -e \"process.platform === 'win32' ? require('child_process').execSync('build_entrypoints.bat', {stdio: 'inherit'}) : require('child_process').execSync('./build_entrypoints.sh', {stdio: 'inherit'})\"",
+    "copy:entrypoints": "node check_and_build_entrypoints.js --copy",
+    "test": "node --test tests/entrypoints.test.js tests/jobActivity.test.js tests/paths.test.js tests/pdfWorkerShutdown.test.js tests/release.test.js tests/releaseProvider.test.js tests/updateControls.test.js tests/updateIpc.test.js tests/updateService.test.js tests/decklistPrinting.test.js",
+    "check:entrypoints": "node check_and_build_entrypoints.js",
+    "build:css": "cd GUI && npm run build:css",
+    "build:gui": "node build_gui.js",
+    "build-all": "npm run build:entrypoints && npm run copy:entrypoints && npm run build:css && npm run build:gui",
+    "dev": "npm run check:entrypoints && cd GUI && npm run dev",
+    "test:integration": "python3 scripts/test-integration.py"
   }
 }

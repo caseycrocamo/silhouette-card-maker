@@ -105,8 +105,16 @@ class TestPicklistFormat:
 class TestSwudbJsonFormat:
     """Test SWUDB JSON format parsing."""
 
-    def test_parse_swudb_json_basic(self):
-        """Test parsing SWUDB JSON format."""
+    def test_parse_swudb_json_basic(self, monkeypatch):
+        """Parse a local card catalogue without SWUDB network access."""
+        catalogue = {
+            'SOR_017': ('Luke Skywalker', 'Faithful Friend'),
+            'TWI_029': ('Test Base', ''),
+            'SOR_203': ('Test Unit', ''),
+            'SHD_202': ('Test Event', ''),
+        }
+        monkeypatch.setattr('plugins.star_wars_unlimited.deck_formats.fetch_name_and_title',
+                            lambda card_id: catalogue[card_id])
         deck_text = """{
   "leader": {"id": "SOR_017", "count": 1},
   "base": {"id": "TWI_029", "count": 1},
@@ -129,7 +137,9 @@ class TestSwudbJsonFormat:
         parse_swudb_json(deck_text, collect_card)
 
         # Should parse leader, base, and deck cards
-        assert len(parsed_cards) >= 4
+        assert len(parsed_cards) == 4
+        assert [card['quantity'] for card in parsed_cards] == [1, 1, 3, 3]
+        assert [(card['name'], card['title']) for card in parsed_cards] == list(catalogue.values())
 
 
 # --- Integration Tests for Data Corrections ---

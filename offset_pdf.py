@@ -14,7 +14,7 @@ default_output_pdf_path = os.path.join(output_directory, 'game.pdf')
 @click.option("-y", "--y_offset", type=int, help="Y-axis offset, relative to back page orientation (positive = up, negative = down).")
 @click.option("-a", "--angle", type=float, help="Angle offset in degrees (positive = clockwise).")
 @click.option("-s", "--save", default=False, is_flag=True, help="Save offset values.")
-@click.option("--ppi", default=300, type=click.IntRange(min=0), show_default=True, help="Pixels per inch (PPI) when generating offset PDF.")
+@click.option("--ppi", default=300, type=click.IntRange(min=1), show_default=True, help="Pixels per inch (PPI) when generating offset PDF.")
 
 def offset_pdf(pdf_path, output_pdf_path, x_offset, y_offset, angle, save, ppi):
     new_x_offset = 0

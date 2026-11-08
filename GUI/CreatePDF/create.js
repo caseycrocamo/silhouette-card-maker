@@ -272,7 +272,11 @@ window.addEventListener('DOMContentLoaded', () => {
         try {
             const result = await ipcRenderer.invoke('run-create-pdf', args);
             window.hideLoadingOverlay();
-            location.href = '../Utilities/pdf_viewer.html';
+            const outputMatch = String(result).match(/Generated PDF:\s*(.+)/);
+            const outputPath = outputMatch ? outputMatch[1].trim() : null;
+            location.href = outputPath
+                ? `../Utilities/pdf_viewer.html?path=${encodeURIComponent(outputPath)}`
+                : '../Utilities/pdf_viewer.html';
         } catch (err) {
             window.hideLoadingOverlay();
             alert('Error creating PDF:\n' + err);
