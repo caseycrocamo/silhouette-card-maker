@@ -3,6 +3,7 @@ from re import compile, search
 from enum import Enum
 import cloudscraper
 from time import sleep
+from urllib.parse import quote
 
 PILTOVER_URL_TEMPLATE = 'https://cdn.piltoverarchive.com/cards/{card_number}.webp'
 RIFTMANA_URL_TEMPLATE = 'https://riftmana.com/wp-content/uploads/Cards/{card_number}.webp'
@@ -15,7 +16,7 @@ class ImageServer(str, Enum):
 scraper = cloudscraper.create_scraper()
 
 def request_api(query: str) -> cloudscraper.CloudScraper:
-    r = scraper.get(query, headers = {'user-agent': 'silhouette-card-maker/0.1', 'accept': '*/*'})
+    r = scraper.get(query, headers = {'user-agent': 'silhouette-card-maker/0.1', 'accept': '*/*'}, timeout=30)
 
     # Check for 2XX response code
     r.raise_for_status()
@@ -52,20 +53,20 @@ def fetch_card_art(index: int, card_number: str, quantity: int, source: ImageSer
                     f.write(card_art)
 
 def fetch_card_number(name: str) -> str:
-    url = f"https://riftmana.com/wp-json/wp/v2/cards?search={name}"
-    name_response = request_api(url)
+    # Use the same provider as the Piltover deck format. Riftmana no longer
+    # exposes its WordPress card search endpoint.
+    url = f"https://piltoverarchive.com/api/external/v1/cards?name={quote(name, safe='')}"
+    variants = request_api(url).json().get('data', [])
+    matches = [variant for variant in variants
+               if variant.get('card', {}).get('name', '').casefold() == name.casefold()
+               and variant.get('variantNumber')]
+    # Prefer regular artwork when the name has several printings.
+    standard = next((variant for variant in matches
+                     if variant.get('variantType') == 'Standard'), None)
+    if standard or matches:
+        return (standard or matches[0])['variantNumber']
+    raise ValueError(f'Card not found: {name}')
 
-    # Now we can retrieve the card number
-    card_link = name_response.json()[0].get('_links', {}).get('self')[0].get('href')
-    card_response = request_api(card_link)
-    card_number_and_name = card_response.json().get('title').get('rendered')
-
-    # '{Card Number} {Card Name}'
-    pattern = compile(r'^([A-Z0-9]+-\d+[a-z]?)(\s+|-)(.*)$')
-    match = pattern.match(card_number_and_name)
-
-    if match:
-        return match.group(1).strip()
 
 def get_handle_card(
     source: ImageServer,

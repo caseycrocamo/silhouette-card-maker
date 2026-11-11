@@ -52,6 +52,30 @@ class TestPiltoverArchiveFormat:
         assert not pattern.match("Viktor, Herald of the Arcane")  # No quantity
 
 
+@pytest.mark.parametrize('variants, expected', [
+    ([{'card': {'name': 'Other card'}, 'variantNumber': 'OGN-001'},
+      {'card': {'name': 'Seal of Unity'}, 'variantNumber': 'OGN-245a', 'variantType': 'Overnumbered'},
+      {'card': {'name': 'Seal of Unity'}, 'variantNumber': 'OGN-245', 'variantType': 'Standard'}], 'OGN-245'),
+    ([{'card': {'name': 'SEAL OF UNITY'}, 'variantNumber': 'OGN-245a'}], 'OGN-245a'),
+    ([{'card': {'name': 'Other card'}, 'variantNumber': 'OGN-001'}], None),
+])
+def test_name_lookup_uses_piltover_and_requires_an_exact_match(monkeypatch, variants, expected):
+    from types import SimpleNamespace
+    from plugins.riftbound import api
+
+    calls = []
+    def request(url):
+        calls.append(url)
+        return SimpleNamespace(json=lambda: {'data': variants})
+    monkeypatch.setattr(api, 'request_api', request)
+    if expected:
+        assert api.fetch_card_number('Seal of Unity') == expected
+    else:
+        with pytest.raises(ValueError, match='Card not found'):
+            api.fetch_card_number('Seal of Unity')
+    assert calls == ['https://piltoverarchive.com/api/external/v1/cards?name=Seal%20of%20Unity']
+
+
 # --- Integration Tests for API and Image Fetching ---
 
 @pytest.mark.integration
