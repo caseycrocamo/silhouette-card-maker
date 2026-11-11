@@ -56,7 +56,7 @@ jobs:
             platform: mac
             arch: x64
           - name: macos-arm64
-            os: macos-14
+            os: macos-15
             platform: mac
             arch: arm64
     runs-on: ${{ matrix.os }}
@@ -71,6 +71,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify native build architecture
+        shell: bash
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          node -e 'if (process.arch !== process.env.TARGET_ARCH) throw new Error(`Node architecture ${process.arch} does not match ${process.env.TARGET_ARCH}`);'
+          python -c "import os,platform; actual={'AMD64':'x64','x86_64':'x64','aarch64':'arm64','arm64':'arm64'}.get(platform.machine()); assert actual == os.environ['TARGET_ARCH'], (platform.machine(), os.environ['TARGET_ARCH'])"
       - name: Install GUI dependencies
         working-directory: GUI
         run: npm ci
