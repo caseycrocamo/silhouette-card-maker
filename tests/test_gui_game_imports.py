@@ -9,6 +9,7 @@ import importlib
 import contextlib
 import io
 from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from plugins.gui_imports import GAMES, GameImporter, capabilities
 
@@ -170,7 +171,7 @@ class GameImportCapabilityTests(unittest.TestCase):
             self.assertEqual('Aragorn',entry['name'])
             self.assertEqual(1,entry['qty'])
             self.assertIn('back',entry)
-            back_path=Path(urlparse(entry['back']['url']).path)
+            back_path=Path(url2pathname(urlparse(entry['back']['url']).path))
             with Image.open(back_path) as image:
                 self.assertEqual((0,0,255),image.convert('RGB').getpixel((0,0)))
 
@@ -195,9 +196,9 @@ class GameImportCapabilityTests(unittest.TestCase):
             entry=result['entries'][0]
             self.assertEqual(('Twin card',2), (entry['name'],entry['qty']))
             self.assertIn('back',entry)
-            with Image.open(Path(urlparse(entry['faces'][0]['url']).path)) as image:
+            with Image.open(Path(url2pathname(urlparse(entry['faces'][0]['url']).path))) as image:
                 self.assertEqual((255,0,0),image.convert('RGB').getpixel((0,0)))
-            with Image.open(Path(urlparse(entry['back']['url']).path)) as image:
+            with Image.open(Path(url2pathname(urlparse(entry['back']['url']).path))) as image:
                 self.assertEqual((0,0,255),image.convert('RGB').getpixel((0,0)))
 
     @staticmethod
