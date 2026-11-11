@@ -51,6 +51,12 @@ jobs:
       - name: Install GUI and updater test dependencies
         working-directory: GUI
         run: npm ci
+      - name: Build shared styles
+        working-directory: GUI
+        run: npm run build:css
+      - name: Exercise Windows update UI without hardware acceleration
+        if: runner.os == 'Windows'
+        run: node GUI/node_modules/electron/cli.js tests/update-ui-smoke.cjs
       - name: Check entrypoints and packaged paths
         run: npm test
       - name: Install worker build dependencies

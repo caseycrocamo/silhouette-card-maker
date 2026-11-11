@@ -9,6 +9,9 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const yaml = require('../GUI/node_modules/js-yaml');
 const { app } = require('electron');
+// The download check uses networking and does not need a graphics adapter.
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
 const { NsisUpdater } = require('../GUI/node_modules/electron-updater');
 const { ElectronHttpExecutor } = require('../GUI/node_modules/electron-updater/out/electronHttpExecutor');
 const { createUpdateService } = require('../GUI/Utilities/updateService');

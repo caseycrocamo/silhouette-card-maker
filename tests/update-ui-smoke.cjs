@@ -60,6 +60,8 @@ service.cancelDownload = () => {
   return service.setState({ status: 'available', progress: 0 });
 };
 
+// Hosted Windows runners may not have a usable graphics adapter.
+app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
 app.on('will-quit', () => {
   try { fs.rmSync(tempUserData, { recursive: true, force: true }); } catch { /* Chromium may still hold cache files until process exit. */ }
