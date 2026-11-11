@@ -8,14 +8,15 @@ const { EventEmitter } = require('node:events');
 const { PassThrough } = require('node:stream');
 const { createTranslationService } = require('../GUI/Utilities/translationService');
 
-function fixture(t, behavior = 'success', packaged = false) {
+function fixture(t, behavior = 'success', packaged = false, platform = process.platform) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'translation-é-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  fs.mkdirSync(path.join(root, 'venv/bin'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'venv/bin/python'), '');
+  const python = path.join(root, 'venv', platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+  fs.mkdirSync(path.dirname(python), { recursive: true });
+  fs.writeFileSync(python, '');
   fs.writeFileSync(path.join(root, 'translated_text_boxes_to_pdf.py'), '');
   const calls = [];
-  const service = createTranslationService({ fs: behavior === 'rename' ? { ...fs, promises: { ...fs.promises, rename: async () => { throw new Error('fixture destination is locked'); } } } : fs, app: { isPackaged: packaged }, projectRoot: root,
+  const service = createTranslationService({ fs: behavior === 'rename' ? { ...fs, promises: { ...fs.promises, rename: async () => { throw new Error('fixture destination is locked'); } } } : fs, app: { isPackaged: packaged }, projectRoot: root, platform,
     resourcesPath: path.join(root, 'resources'), temporaryRoot: root,
     getOutputDir: () => path.join(root, 'output'), getLayoutEnvironment: () => ({ SCM_EXTRA_LAYOUTS: path.join(root, 'custom.json') }),
     spawn(command, args, options) {
@@ -104,4 +105,11 @@ test('translation atomically replaces an existing PDF only after successful vali
   assert.notEqual(staged, outputPath);
   assert.equal(path.dirname(path.dirname(staged)), path.dirname(outputPath));
   assert.equal(fs.existsSync(path.dirname(staged)), false);
+});
+
+for (const platform of ['win32', 'darwin', 'linux']) test(`translation resolves the project Python on ${platform}`, async t => {
+  const { root, service, calls } = fixture(t, 'success', false, platform);
+  await service.run({ markdownText: 'Fixture card' });
+  assert.equal(calls[0].command, path.join(root, 'venv', platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'));
+  assert.equal(calls[0].args[0], path.join(root, 'translated_text_boxes_to_pdf.py'));
 });
