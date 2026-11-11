@@ -16,8 +16,8 @@ def test_unknown_provider_endpoint_has_no_network_fallback():
 @pytest.mark.parametrize('swallow_error', [False, True])
 def test_network_guard_reports_requests_even_when_errors_are_caught(tmp_path, swallow_error):
     root = Path(__file__).resolve().parents[1]
-    (tmp_path / 'conftest.py').write_text((root / 'conftest.py').read_text())
-    (tmp_path / 'provider_mocks.py').write_text((root / 'test/provider_mocks.py').read_text())
+    (tmp_path / 'conftest.py').write_text((root / 'conftest.py').read_text(encoding='utf-8'), encoding='utf-8')
+    (tmp_path / 'provider_mocks.py').write_text((root / 'test/provider_mocks.py').read_text(encoding='utf-8'), encoding='utf-8')
     (tmp_path / 'test_network.py').write_text('''
 import requests
 
@@ -31,7 +31,7 @@ def test_unmocked_request(monkeypatch):
     except AssertionError:
         if not SWALLOW:
             raise
-'''.replace('SWALLOW', repr(swallow_error)))
+'''.replace('SWALLOW', repr(swallow_error)), encoding='utf-8')
     result = subprocess.run([sys.executable, '-m', 'pytest', '-q', str(tmp_path)],
                             cwd=tmp_path, text=True, capture_output=True, timeout=30)
     assert result.returncode == 1, result.stdout + result.stderr
