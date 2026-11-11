@@ -3,6 +3,7 @@
 // Run through Electron on Windows after `GUI/dist/latest.yml` has been built:
 // node GUI/node_modules/electron/cli.js tests/update-download-smoke.cjs
 const fs = require('node:fs');
+const originalFs = require('original-fs');
 const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
@@ -55,7 +56,10 @@ async function run() {
   const cachePath = path.join(temporaryRoot, 'updater-cache');
   await fs.promises.mkdir(appDirectory, { recursive: true });
   await fs.promises.writeFile(path.join(appDirectory, 'Uninstall Silhouette Card Maker.exe'), 'fixture');
-  if (!fs.existsSync(path.join(resourcesPath, 'app.asar'))) throw new Error('The packaged Windows app.asar is missing.');
+  // Electron caches ASAR archives and keeps them open on Windows.
+  // Inspect fixture archives as files so their temporary directory can be removed.
+  const installFs = fixtureMode ? originalFs : fs;
+  if (!installFs.existsSync(path.join(resourcesPath, 'app.asar'))) throw new Error('The packaged Windows app.asar is missing.');
 
   let server;
   let service;
@@ -114,7 +118,7 @@ async function run() {
     service = createUpdateService({
       app: { isPackaged: true, getVersion: () => appAdapter.version, getPath: () => userDataPath },
       updater, platform: 'win32', arch: 'x64', execPath: path.join(appDirectory, 'Silhouette Card Maker.exe'),
-      resourcesPath, env: {}, logger: { warn() {} },
+      resourcesPath, fileSystem: installFs, env: {}, logger: { warn() {} },
     });
     await service.start();
     await service.setAutomaticChecks(false);
@@ -153,7 +157,7 @@ async function run() {
       if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
     }
-    await fs.promises.rm(temporaryRoot, { recursive: true, force: true });
+    await originalFs.promises.rm(temporaryRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     app.exit(exitCode);
   }
 }
