@@ -15,6 +15,10 @@ November 11, 2026
 
 ## Interface and reliability
 
+- Keep all three navigation labels visible, with numbered steps and check badges for earlier stages.
+- Use a compact sidebar for Templates and Settings below 1280 pixels. The menu icon changes to an X, and a dotted edge wipes the navbar away when the sidebar opens. Respect reduced-motion settings.
+- Keep page content and update notices below the navbar, and add space around the dotted step connectors at narrow widths.
+- Preserve the saved game when a Card List link contains an unknown game value.
 - Open game options from bundled metadata without waiting for Python startup.
 - Keep card selection focused on the deck and previews. Hide filename captions on PDF creation previews.
 - Preserve successful imports, quantities, source files, custom image provenance, and paired cards when retrying errors.

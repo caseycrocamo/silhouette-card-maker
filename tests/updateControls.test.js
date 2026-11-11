@@ -73,6 +73,7 @@ async function loadSettings(state, customizeControls) {
       if (name === '../shared/constants') return { getOutputDir: () => '/managed/output' };
       if (path.normalize(name).endsWith(path.join('shared', 'updateControls.js'))) return updateControls;
       if (path.normalize(name).endsWith(path.join('shared', 'printingPreferences.js'))) return require(name);
+      if (path.normalize(name).endsWith(path.join('shared', 'button.js'))) return require(name);
       assert.fail(`Unexpected require: ${name}`);
     },
     __dirname: path.join(root, 'GUI/Settings'),
@@ -159,6 +160,7 @@ test('navbar and Settings classic scripts load in one renderer lexical scope', (
       if (name === '../shared/constants') return { getOutputDir: () => '/managed/output' };
       if (path.normalize(name).endsWith(path.join('shared', 'updateControls.js'))) return loadUpdateControls(ipc).api;
       if (path.normalize(name).endsWith(path.join('shared', 'printingPreferences.js'))) return require(name);
+      if (path.normalize(name).endsWith(path.join('shared', 'button.js'))) return require(name);
       if (name === 'electron') return { ipcRenderer: ipc };
       assert.fail(`Unexpected require: ${name}`);
     },

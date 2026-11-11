@@ -25,6 +25,7 @@
     "test:mtg-imports-ui": "GUI/node_modules/.bin/electron tests/mtg-imports-smoke.cjs",
     "test:text-translation-ui": "GUI/node_modules/.bin/electron tests/text-translation-smoke.cjs",
     "test:studio-tools-ui": "GUI/node_modules/.bin/electron tests/studio-tools-smoke.cjs",
-    "test:gui-frozen": "python -m pytest tests/test_frozen_gui_parity.py -q"
+    "test:gui-frozen": "python -m pytest tests/test_frozen_gui_parity.py -q",
+    "test:navbar-ui": "GUI/node_modules/.bin/electron tests/navbar-smoke.cjs"
   }
 }

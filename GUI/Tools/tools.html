@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cutting templates</title><link rel="stylesheet" href="../styles/main.css"><link rel="stylesheet" href="tools.css"><script src="../shared/navbar.js"></script><script defer src="templates.js"></script><script defer src="studio.js"></script></head>
-<body class="min-h-screen bg-surface text-content"><nav-bar current-step="4"></nav-bar><main class="container mx-auto px-4 pt-24 pb-8 max-w-5xl">
+<body class="min-h-screen bg-surface text-content"><nav-bar current-step="0"></nav-bar><main class="container mx-auto px-4 navbar-clearance pb-8 max-w-5xl">
 <section class="paper-element p-6 mb-6"><h1 class="text-2xl font-semibold mb-2">DXF cutting templates</h1><p>Create a cutting file for a card and paper size.</p><div id="catalogError" role="alert"></div>
 <form id="templateForm" class="template-grid">
 <fieldset><legend>Card</legend><label><input type="radio" name="cardMode" value="named" checked> Named size</label><select class="paper-input" id="cardSize"></select><label><input type="radio" name="cardMode" value="custom"> Custom dimensions</label><div class="pair"><label>Width <input class="paper-input" id="cardWidth" placeholder="63mm"></label><label>Height <input class="paper-input" id="cardHeight" placeholder="88mm"></label></div><label>Corner radius <input class="paper-input" id="cardRadius" placeholder="3mm"></label><label>Card label <input class="paper-input" id="cardName"></label></fieldset>

@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --navbar-height: 96px;
     --app-surface: theme('colors.surface.DEFAULT');
     --app-surface-light: theme('colors.surface.light');
     --app-surface-dark: theme('colors.surface.dark');
@@ -100,8 +101,330 @@
   .paper-button--icon {
     @apply inline-flex items-center justify-center w-10 h-10 p-0 text-2xl leading-none;
   }
+  .paper-button--touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
   .paper-button--image {
     @apply block w-full p-0 overflow-hidden;
+  }
+
+  /* Grouped controls keep their borders and interaction states in the shared component. */
+  .paper-button-group {
+    display: inline-flex;
+    border: 2px dashed var(--app-content-light);
+    border-radius: 999px;
+    padding: 4px;
+  }
+  .paper-button-group > .paper-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 44px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transform: none;
+  }
+  .paper-button-group > .paper-button:first-child {
+    border-radius: 999px 0 0 999px;
+  }
+  .paper-button-group > .paper-button:last-child {
+    border-radius: 0 999px 999px 0;
+  }
+  .paper-button-group > .paper-button + .paper-button {
+    border-left: 2px dashed var(--app-content-light);
+  }
+  .paper-button-group > .paper-button:focus {
+    position: relative;
+    z-index: 1;
+    border-radius: 999px;
+  }
+  .paper-button-group > .paper-button[aria-current="page"] {
+    background: var(--app-content-light);
+    color: var(--app-surface-dark);
+  }
+  .paper-button-group > .paper-button[aria-current="page"]:hover {
+    background: var(--app-content);
+  }
+
+  .navbar-clearance {
+    padding-top: calc(var(--navbar-height) + 24px);
+  }
+  .navbar-update-banner {
+    top: calc(var(--navbar-height) + 12px);
+    max-height: calc(100vh - var(--navbar-height) - 28px);
+    max-width: min(36rem, calc(100vw - 32px));
+  }
+  .navbar-shell {
+    position: fixed;
+    inset: 12px 12px auto;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 24px;
+    padding: 18px 24px;
+    border: 2px dashed var(--app-content-light);
+    border-radius: 20px;
+  }
+  .navbar-wordmark {
+    font-size: 26px;
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+  }
+  .navbar-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    margin: 0;
+    padding: 0 24px;
+    list-style: none;
+    border-inline: 2px dotted var(--app-content-light);
+  }
+  .navbar-steps > li {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .navbar-steps > li + li::before {
+    content: "";
+    width: clamp(16px, 3vw, 64px);
+    min-width: 8px;
+    margin-inline: 16px;
+    flex-shrink: 0;
+    border-top: 3px dotted var(--app-content-light);
+  }
+  .navbar-step {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 48px;
+    padding: 6px 0;
+    border-radius: 999px;
+    color: var(--app-content);
+    font-size: 18px;
+    font-weight: 650;
+    line-height: 1.25;
+    text-decoration: none;
+  }
+  .navbar-step:hover {
+    color: var(--app-content-dark);
+  }
+  .navbar-step:focus-visible {
+    outline: 2px solid var(--app-content-light);
+    outline-offset: 5px;
+  }
+  .navbar-step[aria-current="step"] {
+    padding-inline: 18px;
+    background: var(--app-content);
+    color: var(--app-surface-dark);
+    outline: 2px dashed var(--app-content-light);
+    outline-offset: 5px;
+  }
+  .navbar-step[aria-current="step"]:focus-visible {
+    outline-style: solid;
+    outline-offset: 7px;
+  }
+  .navbar-step-marker {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    font-size: 21px;
+    font-weight: 600;
+  }
+  .navbar-step[aria-current="step"] .navbar-step-marker {
+    flex-basis: 22px;
+    width: 22px;
+    border-color: transparent;
+  }
+  .navbar-step-label {
+    white-space: nowrap;
+  }
+  .navbar-completion-badge {
+    position: absolute;
+    right: -7px;
+    bottom: -7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--app-surface-dark);
+    border-radius: 50%;
+    background: var(--app-content);
+    color: var(--app-surface-dark);
+  }
+  .navbar-completion-badge svg {
+    width: 14px;
+    height: 14px;
+  }
+  .navbar-utilities {
+    min-width: 0;
+  }
+  .navbar-utilities svg {
+    flex: 0 0 23px;
+    width: 23px;
+    height: 23px;
+  }
+
+  .navbar-menu-toggle {
+    position: relative;
+    justify-self: end;
+    z-index: 4;
+  }
+  .navbar-menu-toggle svg {
+    width: 24px;
+    height: 24px;
+  }
+  .navbar-menu-line {
+    transform-origin: 12px 12px;
+    transition: transform 240ms ease, opacity 180ms ease;
+  }
+  .navbar-menu-line--top { transform-origin: 12px 6px; }
+  .navbar-menu-line--bottom { transform-origin: 12px 18px; }
+  .navbar-menu-toggle[aria-expanded="true"] .navbar-menu-line--top { transform: translateY(6px) rotate(45deg); }
+  .navbar-menu-toggle[aria-expanded="true"] .navbar-menu-line--middle { opacity: 0; }
+  .navbar-menu-toggle[aria-expanded="true"] .navbar-menu-line--bottom { transform: translateY(-6px) rotate(-45deg); }
+  .navbar-menu-toggle[hidden], .navbar-utilities[hidden] {
+    display: none !important;
+  }
+  .navbar-menu-backdrop, .navbar-erase-overlay { display: none; }
+
+  @media (max-width: 1279px) {
+    :root { --navbar-height: 104px; }
+    .navbar-wordmark { display: none; }
+    .navbar-shell {
+      grid-template-columns: minmax(0, 1fr) auto;
+      row-gap: 16px;
+      padding: 16px 20px;
+    }
+    .navbar-shell[data-menu-open="true"] { z-index: 30; }
+    .navbar-erase-overlay {
+      display: block;
+      position: fixed;
+      inset: 0 0 auto;
+      height: calc(var(--navbar-height) + 12px);
+      overflow: hidden;
+      z-index: 2;
+      visibility: hidden;
+      transition: visibility 0s linear 180ms;
+      pointer-events: none;
+    }
+    .navbar-erase-mask {
+      position: absolute;
+      left: var(--navbar-right-edge, calc(100vw - 14px));
+      top: 0;
+      width: calc(100vw + 32px);
+      height: 100%;
+      /* Match the page surface under the menu backdrop. */
+      background: color-mix(in srgb, var(--app-surface-dark) 65%, var(--app-surface));
+      transform: translateX(0);
+      transition: transform 180ms ease-in-out;
+    }
+    .navbar-erase-edge {
+      position: absolute;
+      top: var(--navbar-top, 12px);
+      left: 0;
+      height: calc(var(--navbar-height) - var(--navbar-top, 12px));
+      border-left: 2px dotted var(--app-content-light);
+    }
+    .navbar-shell[data-menu-open="true"] .navbar-erase-overlay { visibility: visible; transition-delay: 0s; }
+    .navbar-shell[data-menu-open="true"] .navbar-erase-mask { transform: translateX(calc(0px - var(--navbar-right-edge, 100vw) - 16px)); }
+    .navbar-steps {
+      grid-column: 1;
+      grid-row: 1;
+      padding: 0;
+      border: 0;
+    }
+    .navbar-menu-toggle { grid-column: 2; grid-row: 1; }
+    .navbar-menu-backdrop {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: color-mix(in srgb, var(--app-surface-dark) 65%, transparent);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 240ms ease, visibility 0s linear 240ms;
+    }
+    .navbar-shell[data-menu-open="true"] .navbar-menu-backdrop { opacity: 1; visibility: visible; transition-delay: 0s; }
+    .navbar-utilities {
+      position: fixed;
+      inset: 0 0 0 auto;
+      z-index: 3;
+      width: min(360px, 100vw);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      clip-path: inset(0 0 0 100%);
+      visibility: hidden;
+      transition: clip-path 240ms ease, visibility 0s linear 240ms;
+    }
+    .navbar-shell[data-menu-open="true"] .navbar-utilities { clip-path: inset(0); visibility: visible; transition-delay: 0s; }
+    .paper-button-group.paper-button-group--sidebar {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 16px;
+      padding: calc(var(--navbar-height) + 32px) 24px 24px;
+      border: 0;
+      border-left: 2px dashed var(--app-border);
+      border-radius: 0;
+      background: var(--app-surface);
+    }
+    .paper-button-group.paper-button-group--sidebar > .paper-button {
+      justify-content: flex-start;
+      gap: 12px;
+      min-height: 60px;
+      padding: 16px;
+      border: 2px dashed var(--app-content-light);
+      border-radius: 12px;
+      font-size: 18px;
+    }
+    .navbar-steps > li + li::before { width: clamp(8px, 4vw, 48px); }
+  }
+  @media (max-width: 900px) {
+    .navbar-shell { column-gap: 16px; }
+    .navbar-step { gap: 8px; font-size: 16px; }
+    .navbar-step-marker { flex-basis: 32px; width: 32px; height: 32px; font-size: 18px; }
+    .navbar-step[aria-current="step"] { padding-inline: 12px; }
+    .navbar-steps > li + li::before { width: clamp(8px, 3vw, 32px); margin-inline: 12px; }
+  }
+  @media (max-width: 600px) {
+    .navbar-shell { inset: 8px 8px auto; padding: 12px; column-gap: 12px; }
+    .navbar-steps > li { flex: 1 1 0; }
+    .navbar-steps > li + li::before { width: 6px; min-width: 4px; margin-inline: 12px; }
+    .navbar-step { flex: 1; gap: 6px; font-size: 13px; }
+    .navbar-step-marker { flex-basis: 28px; width: 28px; height: 28px; font-size: 16px; }
+    .navbar-step[aria-current="step"] { padding-inline: 8px; }
+    .navbar-step[aria-current="step"] .navbar-step-marker { flex-basis: 16px; width: 16px; }
+    .navbar-completion-badge { width: 18px; height: 18px; right: -6px; bottom: -6px; }
+    .navbar-completion-badge svg { width: 11px; height: 11px; }
+  }
+  @media (max-width: 480px) {
+    :root { --navbar-height: 128px; }
+    .navbar-step { flex-direction: column; gap: 8px; padding-block: 8px; }
+    .navbar-step-marker, .navbar-step[aria-current="step"] .navbar-step-marker { flex-basis: 28px; height: 28px; }
+    .navbar-step-label { white-space: normal; text-align: center; }
+  }
+  @media (max-width: 340px) {
+    .navbar-shell { padding: 10px; column-gap: 8px; }
+    .navbar-steps > li + li::before { width: 2px; min-width: 2px; margin-inline: 10px; }
+    .navbar-step { font-size: 11px; }
   }
 
   .paper-input {
@@ -140,4 +463,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .loading-spinner { animation: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navbar-erase-overlay,
+  .navbar-erase-mask,
+  .navbar-steps,
+  .navbar-menu-backdrop,
+  .navbar-utilities,
+  .navbar-menu-line { transition: none !important; }
 }

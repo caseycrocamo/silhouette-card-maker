@@ -3,7 +3,7 @@
 @media (min-width: 1101px) {
   body:has(#printingSelectorDialog[open]) .card-list-page {
     position: fixed;
-    inset: 72px auto 0 0;
+    inset: var(--navbar-height, 96px) auto 0 0;
     box-sizing: border-box;
     width: calc(100vw - min(72vw, 1080px));
     max-width: none;
