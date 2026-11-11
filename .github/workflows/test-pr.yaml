@@ -103,4 +103,4 @@ jobs:
           pip install pytest
 
       - name: Run changed plugin tests
-        run: pytest -v -m "not integration and not slow" ${{ needs.detect-plugin-changes.outputs.test_files }}
+        run: pytest -v -m "not slow" ${{ needs.detect-plugin-changes.outputs.test_files }}

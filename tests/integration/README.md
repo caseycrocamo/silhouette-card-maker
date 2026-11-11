@@ -6,7 +6,7 @@ Each test runs sequentially in its own container. This includes each Python para
 
 The image excludes local game data, saved settings, host executables, dependency folders, and build output. Test fixtures are baked into the image. Dependency caches exist only at build time; test state is never reused. Dependencies and source changes require a rebuild. Use `--no-build` only to rerun the same image.
 
-The suite includes the JavaScript checks in `npm test`, Python tests excluding the upstream `integration` and `slow` markers, text-box PDFs for all paper sizes, a real frozen-worker create/offset/reuse test with Unicode paths and saved angle, validation and recovery tests, and Electron UI scenarios. Upstream network plugin tests remain excluded; deterministic UI imports use local responses. This Linux suite does not replace native macOS and Windows packaging checks.
+The suite includes the JavaScript checks in `npm test`, Python tests excluding the `slow` marker, text-box PDFs for all paper sizes, a real frozen-worker create/offset/reuse test with Unicode paths and saved angle, validation and recovery tests, and Electron UI scenarios. Provider tests use synthetic JSON and image responses from `test/provider_mocks.py`. A test fixture blocks sockets and unmocked HTTP requests. The `integration` marker identifies checks across the parser, API adapter, and file writer; these checks also run offline. This Linux suite does not replace native macOS and Windows packaging checks.
 
 Examples:
 

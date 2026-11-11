@@ -2,8 +2,8 @@
 Smoke tests for plugin fetch.py CLI scripts.
 
 These tests verify that all plugin fetch scripts can be imported and invoked
-without import errors. They use empty or minimal decklists to avoid requiring
-network access.
+without import errors. They use empty decklists and mocked API providers. Some adapters load
+metadata even for empty input.
 """
 import os
 import glob
@@ -54,6 +54,7 @@ def test_plugin_fetch_import(plugin_name, module_path, formats):
         pytest.fail(f"Failed to import {module_path}: {e}")
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("plugin_name,module_path,formats", PLUGINS, ids=[p[0] for p in PLUGINS])
 def test_plugin_fetch_cli_invocation(plugin_name, module_path, formats):
     """Test that plugin fetch CLI can be invoked with an empty decklist."""

@@ -9,7 +9,7 @@ testpaths = ["test"]
 pythonpath = [".", "test"]
 markers = [
     "unit: Unit tests that don't require network access",
-    "integration: Integration tests that require network access",
+    "integration: Provider integration tests with mocked HTTP responses",
     "slow: Tests that take a long time to run",
 ]
 filterwarnings = [
