@@ -57,6 +57,9 @@ jobs:
       - name: Exercise Windows update UI without hardware acceleration
         if: runner.os == 'Windows'
         run: node GUI/node_modules/electron/cli.js tests/update-ui-smoke.cjs
+      - name: Exercise Windows updater transport with a local fixture
+        if: runner.os == 'Windows'
+        run: node GUI/node_modules/electron/cli.js tests/update-download-smoke.cjs --fixture
       - name: Check entrypoints and packaged paths
         run: npm test
       - name: Install worker build dependencies

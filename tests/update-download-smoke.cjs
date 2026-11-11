@@ -12,16 +12,33 @@ const { app } = require('electron');
 // The download check uses networking and does not need a graphics adapter.
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
+// No windows are created here; avoid a separate graphics process on CI.
+app.commandLine.appendSwitch('in-process-gpu');
+app.commandLine.appendSwitch('disable-software-rasterizer');
 const { NsisUpdater } = require('../GUI/node_modules/electron-updater');
 const { ElectronHttpExecutor } = require('../GUI/node_modules/electron-updater/out/electronHttpExecutor');
 const { createUpdateService } = require('../GUI/Utilities/updateService');
 
 async function run() {
   if (process.platform !== 'win32') throw new Error('The NSIS download smoke test must run on Windows.');
-  const dist = path.resolve(__dirname, '../GUI/dist');
+  const fixtureMode = process.argv.includes('--fixture');
+  const expectedVersion = require('../GUI/package.json').version;
+  const temporaryRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'scm-updater-smoke-'));
+  const dist = fixtureMode ? path.join(temporaryRoot, 'fixture-dist') : path.resolve(__dirname, '../GUI/dist');
+  if (fixtureMode) {
+    // Exercise the real Electron HTTP updater before waiting for native builds.
+    // These bytes are downloaded and checked, never executed as an installer.
+    const resources = path.join(dist, 'win-unpacked', 'resources');
+    await fs.promises.mkdir(resources, { recursive: true });
+    await fs.promises.writeFile(path.join(resources, 'app.asar'), 'fixture');
+    const name = `Silhouette-Card-Maker-${expectedVersion}-win-x64.exe`;
+    const bytes = Buffer.alloc(2 * 1024 * 1024, 7);
+    await fs.promises.writeFile(path.join(dist, name), bytes);
+    await fs.promises.writeFile(path.join(dist, 'latest.yml'), yaml.dump({ version: expectedVersion,
+      files: [{ url: name, size: bytes.length, sha512: crypto.createHash('sha512').update(bytes).digest('base64') }] }));
+  }
   const metadataBytes = await fs.promises.readFile(path.join(dist, 'latest.yml'));
   const metadata = yaml.load(metadataBytes.toString('utf8'));
-  const expectedVersion = require('../GUI/package.json').version;
   if (!metadata || metadata.version !== expectedVersion || !Array.isArray(metadata.files)) throw new Error('latest.yml does not match GUI/package.json.');
   const installerEntry = metadata.files.find((file) => file && typeof file.url === 'string' && file.url.endsWith('-win-x64.exe'));
   if (!installerEntry || path.basename(installerEntry.url) !== installerEntry.url) throw new Error('latest.yml does not reference a safe Windows x64 NSIS installer.');
@@ -29,7 +46,6 @@ async function run() {
   const installerStat = await fs.promises.stat(installerPath);
   if (installerStat.size !== installerEntry.size) throw new Error('The NSIS installer size does not match latest.yml.');
 
-  const temporaryRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'scm-updater-smoke-'));
   const appDirectory = path.join(temporaryRoot, 'installed-app');
   const resourcesPath = path.join(dist, 'win-unpacked', 'resources');
   const userDataPath = path.join(temporaryRoot, 'user-data');
@@ -121,7 +137,9 @@ async function run() {
       stream.once('end', () => resolve(hash.digest('base64')));
     });
     if (actualHash !== installerEntry.sha512) throw new Error('Downloaded installer checksum differs from the published metadata.');
-    console.log(`Updater smoke passed: ${expectedVersion} discovered and SHA-512-verified; no automatic download or install.`);
+    // Keep the fixture process alive long enough to expose delayed GPU startup failures.
+    if (fixtureMode) await new Promise(resolve => setTimeout(resolve, 15000));
+    console.log(`Updater ${fixtureMode ? 'transport fixture' : 'installer'} smoke passed: ${expectedVersion} discovered and SHA-512-verified; no automatic download or install.`);
   } catch (error) {
     exitCode = 1;
     console.error(`Updater smoke failed: ${error.stack || error}`);

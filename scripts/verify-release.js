@@ -58,9 +58,9 @@ function verifyRelease({ directory, version, platforms = ['win', 'linux', 'mac']
   if (platforms.includes('linux')) {
     const metadata = verifyMetadata(directory, 'latest-linux.yml', version);
     const prefix = `Silhouette-Card-Maker-${escapeRegExp(version)}`;
-    if (!has(new RegExp(`^${prefix}-linux-x64\\.AppImage$`)) || !has(new RegExp(`^${prefix}-linux-x64\\.tar\\.gz$`))) fail('Linux x64 AppImage and tar.gz artifacts are required');
-    if (!metadata.files.some(file => new RegExp(`^${prefix}-linux-x64\\.AppImage$`, 'i').test(file.url || file.path))) fail('Linux metadata must reference the matching x64 AppImage');
-    for (const file of metadata.files) if (!new RegExp(`^${prefix}-linux-x64\\.(?:AppImage|tar\\.gz)$`, 'i').test(file.url || file.path)) fail(`Linux metadata references an artifact with the wrong version or architecture: ${file.url || file.path}`);
+    if (!has(new RegExp(`^${prefix}-linux-(?:x64|x86_64)\\.AppImage$`)) || !has(new RegExp(`^${prefix}-linux-x64\\.tar\\.gz$`))) fail('Linux x64 AppImage and tar.gz artifacts are required');
+    if (!metadata.files.some(file => new RegExp(`^${prefix}-linux-(?:x64|x86_64)\\.AppImage$`, 'i').test(file.url || file.path))) fail('Linux metadata must reference the matching x64 AppImage');
+    for (const file of metadata.files) if (!new RegExp(`^${prefix}-linux-(?:(?:x64|x86_64)\\.AppImage|x64\\.tar\\.gz)$`, 'i').test(file.url || file.path)) fail(`Linux metadata references an artifact with the wrong version or architecture: ${file.url || file.path}`);
   }
   if (platforms.includes('mac')) {
     for (const arch of ['x64', 'arm64']) for (const ext of ['dmg', 'zip']) {

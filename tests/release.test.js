@@ -90,3 +90,21 @@ test('checks required platform formats and architecture-specific macOS artifacts
   fs.writeFileSync(path.join(directory, 'latest-linux.yml'), yaml.dump({ version: '1.2.3', files: [{ url: linux, size: linuxBytes.length, sha512: crypto.createHash('sha512').update(linuxBytes).digest('base64') }] }));
   assert.equal(verifyRelease({ directory, version: '1.2.3' }).artifactCount, 9);
 });
+
+for (const arch of ['x64', 'x86_64']) test(`accepts the AppImage architecture label ${arch}`, t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'linux-release-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const name = `Silhouette-Card-Maker-1.2.3-linux-${arch}.AppImage`;
+  const bytes = Buffer.from('AppImage fixture bytes');
+  fs.writeFileSync(path.join(directory, name), bytes);
+  fs.writeFileSync(path.join(directory, 'Silhouette-Card-Maker-1.2.3-linux-x64.tar.gz'), 'archive');
+  const metadata = { version: '1.2.3', files: [{ url: name, size: bytes.length,
+    sha512: crypto.createHash('sha512').update(bytes).digest('base64') }] };
+  fs.writeFileSync(path.join(directory, 'latest-linux.yml'), yaml.dump(metadata));
+  assert.equal(verifyRelease({ directory, version: '1.2.3', platforms: ['linux'] }).artifactCount, 2);
+  const unsupported = 'Silhouette-Card-Maker-1.2.3-linux-arm64.AppImage';
+  fs.renameSync(path.join(directory, name), path.join(directory, unsupported));
+  metadata.files[0].url = unsupported;
+  fs.writeFileSync(path.join(directory, 'latest-linux.yml'), yaml.dump(metadata));
+  assert.throws(() => verifyRelease({ directory, version: '1.2.3', platforms: ['linux'] }), /x64 AppImage/);
+});
