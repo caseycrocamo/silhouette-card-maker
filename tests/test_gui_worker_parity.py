@@ -10,7 +10,8 @@ import pdf_worker
 import template_worker
 
 
-def test_custom_template_is_available_to_running_pdf_worker(tmp_path):
+def test_custom_template_is_available_to_running_pdf_worker(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     definitions = tmp_path / 'custom-layouts.json'
     definitions.write_text('{}')
     with patch.dict('os.environ', {'SCM_EXTRA_LAYOUTS': str(definitions), 'SCM_CUSTOM_LAYOUT_PATH': str(definitions)}):
@@ -29,10 +30,15 @@ def test_custom_template_is_available_to_running_pdf_worker(tmp_path):
         assert 'gui_test_paper' in choices['paper_size']
         front = tmp_path / 'front'
         front.mkdir()
+        back = tmp_path / 'back'
+        back.mkdir()
+        doubles = tmp_path / 'double_sided'
+        doubles.mkdir()
         Image.new('RGB', (60, 85), 'navy').save(front / 'card.png')
         output = tmp_path / 'cards.pdf'
         result = pdf_worker.dispatch({'command': 'create_pdf', 'argv': [
-            '--front_dir_path', str(front), '--card_size', 'gui_test_card',
+            '--front_dir_path', str(front), '--back_dir_path', str(back),
+            '--double_sided_dir_path', str(doubles), '--card_size', 'gui_test_card',
             '--paper_size', 'gui_test_paper', '--only_fronts', '--ppi', '72',
             '--output_path', str(output),
         ]})
