@@ -20,8 +20,8 @@ const { ElectronHttpExecutor } = require('../GUI/node_modules/electron-updater/o
 const { createUpdateService } = require('../GUI/Utilities/updateService');
 
 async function run() {
-  if (process.platform !== 'win32') throw new Error('The NSIS download smoke test must run on Windows.');
   const fixtureMode = process.argv.includes('--fixture');
+  if (process.platform !== 'win32' && !fixtureMode) throw new Error('The NSIS download smoke test must run on Windows.');
   const expectedVersion = require('../GUI/package.json').version;
   const temporaryRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'scm-updater-smoke-'));
   const dist = fixtureMode ? path.join(temporaryRoot, 'fixture-dist') : path.resolve(__dirname, '../GUI/dist');
@@ -30,7 +30,10 @@ async function run() {
     // These bytes are downloaded and checked, never executed as an installer.
     const resources = path.join(dist, 'win-unpacked', 'resources');
     await fs.promises.mkdir(resources, { recursive: true });
-    await fs.promises.writeFile(path.join(resources, 'app.asar'), 'fixture');
+    const fixtureApp = path.join(temporaryRoot, 'fixture-app');
+    await fs.promises.mkdir(fixtureApp);
+    await fs.promises.writeFile(path.join(fixtureApp, 'package.json'), JSON.stringify({ name: 'updater-fixture', version: '0.0.1' }));
+    await require('../GUI/node_modules/@electron/asar').createPackage(fixtureApp, path.join(resources, 'app.asar'));
     const name = `Silhouette-Card-Maker-${expectedVersion}-win-x64.exe`;
     const bytes = Buffer.alloc(2 * 1024 * 1024, 7);
     await fs.promises.writeFile(path.join(dist, name), bytes);
@@ -67,7 +70,7 @@ async function run() {
     server = http.createServer((request, response) => {
       const name = decodeURIComponent(new URL(request.url, 'http://127.0.0.1').pathname.slice(1));
       console.log(`Loopback updater request: ${name}`);
-      if (name === 'latest.yml') {
+      if (name === 'latest.yml' || (fixtureMode && ['latest-mac.yml', 'latest-linux.yml'].includes(name))) {
         response.writeHead(200, { 'content-type': 'text/yaml', 'content-length': metadataBytes.length });
         response.end(metadataBytes);
         return;

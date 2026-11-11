@@ -140,6 +140,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -155,6 +157,11 @@ jobs:
           merge-multiple: true
       - name: Verify complete release set
         run: node scripts/verify-release.js release-assets "${{ needs.validate-tag.outputs.version }}"
+      - name: Require successful main CI before publication
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: caseycrocamo/silhouette-card-maker
+        run: node scripts/wait-for-ci.js "$(git rev-parse HEAD)"
       - name: Create draft and upload complete asset set
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -28,6 +28,7 @@ November 11, 2026
 - Use mocked card-provider responses in automated tests. Reject unmocked network access.
 - Run full source Python tests on Python 3.12–3.15 for pushes and pull requests to main.
 - Check frozen imports, templates, PDF creation, calibration, and translation during platform release builds.
+- Publish packages only after main CI and platform release checks pass.
 - Build Windows x64, Linux x64, macOS Intel, and macOS Apple silicon installers and archives.
 - Use Node.js 22 or newer for development and builds.
 
