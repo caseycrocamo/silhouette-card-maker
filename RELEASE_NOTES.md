@@ -20,6 +20,7 @@ November 11, 2026
 - Preserve successful imports, quantities, source files, custom image provenance, and paired cards when retrying errors.
 - Wait for active jobs and worker cleanup before quitting or installing an update.
 - Use Piltover Archive for Riftbound name lookup and correct Sorcery HTTP session handling.
+- Preserve UTF-8 translation input and output paths on Windows, including names outside the active console character set.
 - Bundle native workers so the installed app does not need a local Python installation.
 
 ## Testing and builds

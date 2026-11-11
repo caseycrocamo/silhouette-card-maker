@@ -72,7 +72,7 @@ def test_unicode_file_and_original_source(importer,tmp_path):
     with patch.object(importer,'resolve',return_value=([{'id':'one','faces':[]}],[])):
         result=importer.import_game({'format':'cubecobra_csv','input':{'kind':'file','value':str(source)}})
     assert result['entries'][0]['name']=='Éowyn'
-    assert source.read_text()=='name,Set\nÉowyn,ltr'
+    assert source.read_text(encoding='utf-8')=='name,Set\nÉowyn,ltr'
 
 def test_bad_documents_and_empty_decks(importer):
     for fmt,text in [('scryfall_json','{'),('mpcfill_xml','<'),('cubecobra_csv','bad\nrow')]:

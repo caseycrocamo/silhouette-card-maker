@@ -24,8 +24,9 @@ def test_translation_custom_paper_quality_and_source_preservation(tmp_path, qual
     result = subprocess.run([sys.executable, str(ROOT / 'translated_text_boxes_to_pdf.py'),
         '--input_path', str(source), '--output_path', str(output),
         '--paper_size', 'translation_custom', '--ppi', '72', '--quality', str(quality)],
-        cwd=ROOT, env=dict(os.environ, SCM_EXTRA_LAYOUTS=str(extra)), capture_output=True, text=True, timeout=60)
+        cwd=ROOT, env=dict(os.environ, SCM_EXTRA_LAYOUTS=str(extra), PYTHONIOENCODING='cp1252'), capture_output=True, text=True, encoding='utf-8', timeout=60)
     assert result.returncode == 0, result.stderr
+    assert str(output) in result.stdout
     assert source.read_text(encoding='utf8') == text
     with pdfium.PdfDocument(output) as document:
         assert len(document) > 1

@@ -1,7 +1,7 @@
 import os
 
 import click
-from utilities import generate_md_pdf, load_layout_config
+from utilities import configure_console_encoding, generate_md_pdf, load_layout_config
 
 # Use environment variables if available, otherwise fall back to local game directory
 input_directory = os.environ.get('CARD_MAKER_DECKLIST_DIR', os.path.join('game', 'decklist'))
@@ -29,4 +29,5 @@ def cli(input_path, output_path, paper_size, ppi, quality):
 
 
 if __name__ == '__main__':
+    configure_console_encoding()
     cli()
