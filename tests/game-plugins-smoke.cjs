@@ -55,7 +55,7 @@ async function run() {
   ipcMain.handle("updates:get-state", () => ({ status: "idle" }));
   dialog.showMessageBox = async () => ({ response: 2 });
   dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path.join(work, "back")] });
-  win = new BrowserWindow({ show: false, width: 1440, height: 1100, webPreferences: { nodeIntegration: true, contextIsolation: false, backgroundThrottling: false } });
+  win = new BrowserWindow({ show: true, width: 1440, height: 1100, webPreferences: { nodeIntegration: true, contextIsolation: false, backgroundThrottling: false } });
   win.webContents.on("console-message", (_event, level, message) => { if (level === 3) errors.push(message); });
   await home();
   assert.equal(await js("[...document.querySelectorAll('#gamePicker button')].every(button=>button.classList.contains('paper-button'))"), true);

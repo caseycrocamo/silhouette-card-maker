@@ -51,6 +51,26 @@ class TestCuriosaurlFormat:
         assert match.group(1) == "cme5x329q00k9jo04ouuycsek"
 
 
+@pytest.mark.parametrize("operation", ["deck", "image"])
+def test_curiosa_requests_use_session_and_timeout(monkeypatch, operation):
+    from types import SimpleNamespace
+    from plugins.sorcery_contested_realm import curiosa
+
+    calls = []
+    response = SimpleNamespace(raise_for_status=lambda: None, json=lambda: [])
+    def get(url, **kwargs):
+        calls.append((url, kwargs))
+        return response
+    monkeypatch.setattr(curiosa.session, "get", get)
+    monkeypatch.setattr(curiosa, "sleep", lambda _: None)
+    if operation == "deck":
+        assert curiosa.get_curiosa_decklist("fixture-deck") == []
+        assert calls[0][1]["params"]["batch"] == "1"
+    else:
+        assert curiosa.request_curiosa("https://fixture.example/card.png") is response
+    assert calls[0][1]["timeout"] == 20
+
+
 # --- Integration Tests ---
 
 @pytest.mark.integration

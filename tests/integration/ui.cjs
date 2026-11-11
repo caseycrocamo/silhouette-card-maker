@@ -2,7 +2,7 @@
 
 // Run one case in a fresh Electron process. Docker runs each case in a fresh
 // container so the production filesystem paths and PDF worker stay realistic.
-const CASES = ['navigation', 'create-pdf', 'settings', 'translation', 'decklist', 'decklist-printing', 'pdf-viewer'];
+const CASES = ['navigation', 'create-pdf', 'settings', 'translation', 'pdf-viewer'];
 if (process.argv.includes('--list')) {
   process.stdout.write(`${JSON.stringify(CASES)}\n`);
   process.exit(0);
@@ -41,7 +41,10 @@ async function load(rel) {
   await js("window.alert = value => window.__lastAlert = String(value); window.confirm = () => false; window.__uiErrors = []; window.addEventListener('error', e => window.__uiErrors.push(e.message)); window.addEventListener('unhandledrejection', e => window.__uiErrors.push(String(e.reason)))");
   assert(errors.length === 0, `Renderer errors on ${rel}: ${errors.join('\n')}`);
 }
-async function js(code) { return win.webContents.executeJavaScript(code); }
+async function js(code) {
+  try { return await win.webContents.executeJavaScript(code); }
+  catch (error) { throw new Error(`Renderer command failed: ${code}\n${error.stack || error}`); }
+}
 async function click(id) { await js(`document.getElementById(${JSON.stringify(id)}).click()`); }
 async function waitFor(fn, message, timeout = 8000) {
   const end = Date.now() + timeout;
@@ -62,7 +65,7 @@ function seedFront(name = 'fixture.png') { fs.writeFileSync(path.join(frontDir()
 
 async function navigation() {
   await load('Home/home.html');
-  assert(await js("document.querySelector('h1')?.textContent.includes('Welcome')"), 'Home heading missing');
+  assert(await js("document.querySelector('h1')?.textContent.includes('Choose your game')"), 'Home heading missing');
   assert(await js("Boolean(document.getElementById('calibrationNotice') && !document.getElementById('calibrationNotice').classList.contains('hidden'))"), 'Fresh-install calibration notice missing');
   await js("require('electron').shell.openExternal = url => { window.__openedExternal = url; return Promise.resolve(); }; void 0");
   await click('calibrationDocsLink');
@@ -71,15 +74,17 @@ async function navigation() {
   await waitFor(async () => (await js('location.pathname')).endsWith('/Settings/settings.html'), 'Home calibration Settings action failed');
   assert(await js("Boolean(document.getElementById('editXOffset') && document.getElementById('saveOffsetBtn'))"), 'Calibration Settings page did not load');
   await load('Home/home.html');
-  await js("Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Magic the Gathering')).click()");
-  await waitFor(async () => (await js('location.pathname')).endsWith('/MagicTheGathering/decklist.html'), 'Home MTG navigation failed');
+  await js("document.querySelector('#gamePicker [data-game=mtg]').click()");
+  await waitFor(() => js("Boolean(document.getElementById('gameOptionsContinue'))"), 'MTG options did not open');
+  await js("document.getElementById('game-option-workflow').value='front_only'");
+  await click('gameOptionsContinue');
+  await waitFor(async () => (await js('location.pathname')).endsWith('/CardList/decklist.html'), 'Home MTG navigation failed');
   assert(await js("Boolean(document.getElementById('searchBtn') && document.getElementById('exportBtn') && document.getElementById('nextCreatePdfBtn'))"), 'Decklist controls did not load');
-  await js("Array.from(document.querySelectorAll('input[name=cardWorkflow]')).find(x => x.value === 'front_only').click()");
-  assert(await js("sessionStorage.getItem('cardWorkflow') === 'front_only'"), 'Workflow toggle did not persist');
+  assert(await js("require('../shared/cardList/sessionStore').createStore(sessionStorage,'mtg').load().workflow === 'front_only'"), 'Workflow choice did not persist');
   await js("Array.from(document.querySelectorAll('nav-bar nav a')).find(a => a.getAttribute('href') === '../Home/home.html').click()");
   await waitFor(async () => (await js('location.pathname')).endsWith('/Home/home.html'), 'Navbar Choose Game link failed');
-  await js("Array.from(document.querySelectorAll('nav-bar nav a')).find(a => a.getAttribute('href') === '../MagicTheGathering/decklist.html').click()");
-  await waitFor(async () => (await js('location.pathname')).endsWith('/MagicTheGathering/decklist.html'), 'Navbar Card List link failed');
+  await js("Array.from(document.querySelectorAll('nav-bar nav a')).find(a => a.getAttribute('href')?.includes('CardList/decklist.html')).click()");
+  await waitFor(async () => (await js('location.pathname')).endsWith('/CardList/decklist.html'), 'Navbar Card List link failed');
   assert(await js("Boolean(document.getElementById('longText') && document.getElementById('searchBtn'))"), 'Navbar Card List destination did not load');
   await js("Array.from(document.querySelectorAll('nav-bar nav a')).find(a => a.getAttribute('href') === '../CreatePDF/create.html').click()");
   await waitFor(async () => (await js('location.pathname')).endsWith('/CreatePDF/create.html'), 'Navbar Create PDF link failed');
@@ -88,7 +93,10 @@ async function navigation() {
   await waitFor(async () => (await js('location.pathname')).endsWith('/Settings/settings.html'), 'Navbar Settings link failed');
   assert(await js("Boolean(document.getElementById('saveOffsetBtn') && document.getElementById('runOffsetPdfBtn'))"), 'Navbar Settings destination did not load');
   await load('Home/home.html');
-  await js("Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('MTG Text Translation')).click()");
+  await js("document.querySelector('#gamePicker [data-game=mtg]').click()");
+  await waitFor(() => js("Boolean(document.getElementById('gameOptionsContinue'))"), 'MTG options did not reopen');
+  await js("document.getElementById('game-option-mode').value='translation'");
+  await click('gameOptionsContinue');
   await waitFor(async () => (await js('location.pathname')).endsWith('/MagicTheGathering/text_translation.html'), 'Home translation navigation failed');
   assert(await js("['mdText','paperSize','ppi','quality','generatePdfBtn'].every(id => document.getElementById(id))"), 'Translation controls missing');
 }
@@ -119,9 +127,10 @@ async function createPdf() {
   await waitFor(async () => await js("Boolean(document.getElementById('setting-only_fronts'))"), 'PDF settings did not load', 30000);
   await click('openSettings');
   await js("for (const [name,value] of [['skip','4'],['load_offset',true],['only_fronts','true']]) { const input=document.getElementById('setting-'+name); if(input.type==='checkbox')input.checked=value;else input.value=value;input.dispatchEvent(new Event('change',{bubbles:true})); }");
-  assert(await js("document.getElementById('doubleSidedSection').classList.contains('hidden') && document.getElementById('backImageSection').classList.contains('hidden')"), 'Only-front workflow did not hide back-side sections');
+  chosenPdf = path.join(outputDir(), 'ui-create.pdf');
   await js(`const destination=document.getElementById('setting-output_path'); destination.value=${JSON.stringify(path.join(outputDir(), 'ui-create.pdf'))};destination.dispatchEvent(new Event('change',{bubbles:true}));`);
   await click('saveSettings');
+  assert(await js("document.getElementById('doubleSidedSection').classList.contains('hidden') && document.getElementById('backImageSection').classList.contains('hidden')"), 'Saved front-only workflow did not hide back-side sections');
   await click('createPdfBtn');
   await waitFor(async () => (await js('location.pathname')).endsWith('/Utilities/pdf_viewer.html'), 'Create PDF did not open viewer', 30000);
   verifyPdf(path.join(outputDir(), 'ui-create.pdf'));
@@ -130,11 +139,14 @@ async function createPdf() {
   await waitFor(async () => await js("Boolean(document.getElementById('setting-ppi'))"), 'PDF settings did not restore', 30000);
   assert(await js("document.getElementById('setting-only_fronts').value==='true'"), 'Print mode draft was not restored');
   await click('clearFrontBtn');
+  await waitFor(async () => !fs.existsSync(path.join(frontDir(), 'fixture.png')) && await js("!document.getElementById('clearFrontBtn').disabled"), 'Front images were not cleared');
   await click('createPdfBtn');
   await waitFor(async () => (await js("document.getElementById('validationSummary').textContent")).length > 0, 'Empty image submission did not report an error');
+  await waitFor(() => js("!document.getElementById('createPdfBtn').disabled"), 'Empty submission did not finish');
   seedFront();
+  await click('openSettings');
   await js("const ppi=document.getElementById('setting-ppi');ppi.value='0';ppi.dispatchEvent(new Event('change',{bubbles:true}))");
-  await click('createPdfBtn');
+  await click('saveSettings');
   await waitFor(async () => (await js("document.getElementById('error-ppi').textContent")).length > 0, 'Invalid PPI did not report a field error');
 
 }
@@ -153,9 +165,12 @@ async function settings() {
   const offsetsPath = path.join(root, 'data', 'offset_data.json');
   await waitFor(async () => fs.existsSync(offsetsPath) && (() => { const data = JSON.parse(fs.readFileSync(offsetsPath, 'utf8')); return data.x_offset === 0 && data.y_offset === 0; })(), 'Invalid offsets did not recover to zero');
   await js("document.getElementById('editXOffset').value='2.25'; document.getElementById('editYOffset').value='-1.5'");
+  await click('saveOffsetBtn');
+  assert(await js("window.__lastAlert.includes('whole pixels')"), 'Fractional pixel offsets were not rejected');
+  await js("document.getElementById('editXOffset').value='2'; document.getElementById('editYOffset').value='-1'; document.getElementById('editAngleOffset').value='0.25'");
   await js('window.alert = value => window.__lastAlert = String(value); void 0');
   await click('saveOffsetBtn');
-  await waitFor(async () => JSON.parse(fs.readFileSync(path.join(root, 'data', 'offset_data.json'), 'utf8')).x_offset === 2.25, 'Offset values were not saved');
+  await waitFor(async () => JSON.parse(fs.readFileSync(path.join(root, 'data', 'offset_data.json'), 'utf8')).x_offset === 2, 'Offset values were not saved');
   assert(await js("window.__lastAlert === 'Offset data saved.'"), 'Save confirmation missing');
   const pdf = path.join(outputDir(), 'offset-source.pdf');
   const source = path.join(root, 'calibration', 'letter-calibration.pdf');
@@ -199,74 +214,6 @@ async function translation() {
   await waitFor(async () => (await js('location.pathname')).endsWith('/Utilities/pdf_viewer.html'), 'Translation did not open viewer', 20000);
 }
 
-async function decklist() {
-  ensureDirs();
-  const fixtureUrl = 'https://fixture.local/card.png';
-  const card = { name: 'Test Card', layout: 'normal', image_uris: { png: fixtureUrl }, set: 'tst', collector_number: '1' };
-  await load('MagicTheGathering/decklist.html');
-  await js(`window.fetch = async url => String(url).includes('api.scryfall.com') ? (String(url).includes('Missing') ? ({ok:false,status:404}) : ({ok:true,json:async()=>(${JSON.stringify(card)})})) : ({ok:true,arrayBuffer:async()=>Uint8Array.from(atob(${JSON.stringify(png.toString('base64'))}), c=>c.charCodeAt(0)).buffer}); void 0`);
-  await js("document.getElementById('longText').value='Missing Card'; document.getElementById('longForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
-  await waitFor(async () => (await js("document.getElementById('output').innerText")).includes('Card not found'), 'Unknown card error was not rendered');
-  await js("document.getElementById('longText').value='2x Test Card (tst) 1'; document.getElementById('longForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
-  await waitFor(async () => (await js("document.querySelectorAll('#output img').length")) > 0, 'Decklist search returned no card image', 10000);
-  const result = await js("({text:document.getElementById('output').innerText, inputs:document.querySelectorAll('#output input').length})");
-  assert(result.text.includes('Test Card') && result.inputs === 0, 'Parsed card name missing from results');
-  // Preserve a single result card for a deterministic, local export and test workflow toggle.
-  await js("document.getElementById('longText').value='Test Card'; document.getElementById('longForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
-  await waitFor(async () => (await js("document.querySelectorAll('#output img').length")) > 0, 'Single-card search did not complete', 10000);
-  // Search buttons select matching printings; trigger the first result action.
-  await js("document.querySelector('#output button')?.click()");
-  await wait(200);
-  // Tests parser and workflow persistence even if the mock result renderer varies.
-  await js("document.querySelector('input[value=front_only]').click(); document.getElementById('longText').value='Test Card';");
-  await click('nextCreatePdfBtn');
-  await waitFor(async () => (await js('location.pathname')).endsWith('/CreatePDF/create.html'), 'Decklist next-step navigation failed', 10000);
-  assert(await js("sessionStorage.getItem('onlyFronts') === 'true'"), 'Front-only workflow did not reach PDF page');
-}
-
-async function decklistPrinting() {
-  const fixtures = {
-    alpha: { name: 'Test Card', layout: 'normal', set: 'aaa', collector_number: '1', image_uris: { png: 'https://fixture.local/alpha.png' }, prints_search_uri: 'https://fixture.local/prints' },
-    beta: { name: 'Test Card', layout: 'normal', set: 'bbb', collector_number: '27', image_uris: { png: 'https://fixture.local/beta.png' }, prints_search_uri: 'https://fixture.local/prints' },
-    gamma: { name: 'Test Card', layout: 'normal', set: 'ccc', collector_number: '5', image_uris: { png: 'https://fixture.local/gamma.png' }, prints_search_uri: 'https://fixture.local/prints' }
-  };
-  await load('MagicTheGathering/decklist.html');
-  await js(`window.fetch = async url => {
-    url=String(url);
-    if(url.endsWith('/prints')) return {ok:true,json:async()=>({data:[
-      {set:'aaa',set_name:'Alpha Set',image_uris:{png:'https://fixture.local/alpha.png'}},
-      {set:'bbb',set_name:'Beta Set',image_uris:{png:'https://fixture.local/beta.png'}},
-      {set:'ccc',set_name:'Gamma Set',image_uris:{png:'https://fixture.local/gamma.png'}},
-      {set:'ddd',set_name:'Unavailable Set',image_uris:{png:'https://fixture.local/missing.png'}}
-    ]})};
-    if(url.includes('set=ddd')) return {ok:false,status:404};
-    if(url.includes('fixture.local/')) return {ok:true,arrayBuffer:async()=>Uint8Array.from(atob(${JSON.stringify(png.toString('base64'))}), c=>c.charCodeAt(0)).buffer};
-    const key=url.includes('set=bbb')?'beta':url.includes('set=ccc')?'gamma':'alpha';
-    return {ok:true,json:async()=>(${JSON.stringify(fixtures)}[key])};
-  }; void 0`);
-  await js("document.getElementById('longText').value='2x Test Card'; document.getElementById('longForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
-  await waitFor(async () => (await js("document.getElementById('set-select-0')?.options.length || 0")) === 4, 'Printing options did not load', 10000);
-  const initialRows = await js("document.querySelectorAll('#output [id^=card-li-]').length");
-  const initialImages = await js("document.querySelectorAll('#output img').length");
-  assert(initialRows === 1 && initialImages === 1, `Unexpected initial card count for quantity 2: ${initialRows} rows, ${initialImages} images`);
-  for (const [set, label, number, image] of [['bbb','[BBB]','27','beta.png'], ['ccc','[CCC]','5','gamma.png'], ['aaa','[AAA]','1','alpha.png'], ['bbb','[BBB]','27','beta.png']]) {
-    await js(`(() => { const select=document.getElementById('set-select-0'); select.value=${JSON.stringify(set)}; select.dispatchEvent(new Event('change',{bubbles:true})); })()`);
-    await waitFor(async () => (await js("document.getElementById('card-set-0')?.textContent")) === label && (await js("document.getElementById('card-img-0')?.src"))?.endsWith(image), `Printing ${label} did not update`, 5000);
-    const state = await js("({rows:document.querySelectorAll('#output [id^=card-li-]').length, images:document.querySelectorAll('#output img').length, decklist:document.getElementById('longText').value})");
-    assert(state.rows === initialRows && state.images === initialImages, `Switching to ${label} changed card count: ${JSON.stringify(state)}`);
-    assert(state.decklist.includes(`(${label.slice(1,4)})`) && state.decklist.endsWith(number), `Decklist did not retain selected printing ${label}/${number}: ${state.decklist}`);
-  }
-  await js("const select=document.getElementById('set-select-0'); select.value='ddd'; select.dispatchEvent(new Event('change',{bubbles:true}))");
-  await wait(200);
-  await waitFor(async () => (await js('document.getElementById("card-set-0")?.textContent')) === '[BBB]', 'Unavailable printing did not preserve the current selection');
-  assert(await js("document.getElementById('card-img-0').src.endsWith('beta.png') && document.getElementById('longText').value === '2x Test Card (BBB) 27'"), 'Failed printing lookup changed artwork or decklist');
-  await js("document.querySelector('input[value=front_only]').click()");
-  await click('nextCreatePdfBtn');
-  await waitFor(async () => (await js('location.pathname')).endsWith('/CreatePDF/create.html'), 'Printing selection did not continue to PDF creation');
-  const exported = fs.readdirSync(frontDir()).filter(name => name.endsWith('.png'));
-  assert(exported.length === 2 && exported.includes('1testCard1.png') && exported.includes('2testCard1.png'), `Quantity 2 did not export as two images: ${exported.join(', ')}`);
-}
-
 async function pdfViewer() {
   ensureDirs();
   const pdf = path.join(outputDir(), 'viewer-fixture.pdf');
@@ -282,7 +229,7 @@ async function pdfViewer() {
   assert(safeSrc === pathToFileURL(path.join(outputDir(), 'game.pdf')).href, `Viewer accepted unsafe file path: ${safeSrc}`);
   await js("Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Back to Home').click()");
   await waitFor(async () => (await js('location.pathname')).endsWith('/Home/home.html'), 'PDF viewer Back to Home action failed');
-  assert(await js("document.querySelector('h1')?.textContent.includes('Welcome')"), 'PDF viewer did not return to Home');
+  assert(await js("document.querySelector('h1')?.textContent.includes('Choose your game')"), 'PDF viewer did not return to Home');
 }
 
 async function run() {
@@ -307,7 +254,7 @@ async function run() {
   win = new BrowserWindow({ show: false, width: 1200, height: 900, webPreferences: { nodeIntegration: true, contextIsolation: false } });
   win.webContents.on('render-process-gone', (_e, details) => errors.push(`Renderer exited: ${details.reason}`));
   win.webContents.on('did-fail-load', (_e, code, desc, url, mainFrame) => { if (mainFrame) errors.push(`Load failed ${code}: ${desc} ${url}`); });
-  await ({ navigation, 'create-pdf': createPdf, settings, translation, decklist, 'decklist-printing': decklistPrinting, 'pdf-viewer': pdfViewer })[caseName]();
+  await ({ navigation, 'create-pdf': createPdf, settings, translation, 'pdf-viewer': pdfViewer })[caseName]();
   assert(await js("!(window.__uiErrors || []).length"), `Uncaught renderer errors: ${JSON.stringify(await js('window.__uiErrors'))}`);
   fs.writeSync(1, `UI integration case passed: ${caseName}\n`);
 }

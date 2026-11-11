@@ -126,6 +126,8 @@ function loadIpc() {
     setTimeout,
     clearTimeout,
     require(name) {
+      // The fake filesystem below uses POSIX paths on every host.
+      if (name === "path") return path.posix;
       if (name === "electron") return electron;
       if (name === "fs") return fakeFs;
       if (name === "./pdfWorkerClient") return worker;
@@ -139,7 +141,12 @@ function loadIpc() {
           return { ok: true, path: payload.output_path };
         },
       };
-      if (name === "./updateIpc") return require("../GUI/Utilities/updateIpc");
+      if (name === "./updateIpc") {
+        const real = require("../GUI/Utilities/updateIpc");
+        // Trust checks use real file URLs and the host filesystem, unlike the
+        // virtual POSIX image paths in this fixture.
+        return { ...real, isTrustedUpdateSender: event => real.isTrustedUpdateSender(event, path.resolve(__dirname, "../GUI")) };
+      }
       if (name === "./jobActivity")
         return { jobActivity: { run: async (fn) => {
           activityCalls.push('start');

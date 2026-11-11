@@ -14,9 +14,11 @@ COPY GUI/package*.json /app/GUI/
 RUN cd GUI && npm ci
 COPY *.py pyproject.toml /app/
 COPY assets /app/assets
+COPY plugins /app/plugins
 RUN pyinstaller --noconfirm --onefile --add-data '/app/assets:assets' --distpath /app --workpath /tmp/freeze --specpath /tmp pdf_worker.py && pyinstaller --noconfirm --onefile --add-data '/app/assets:assets' --distpath /app/GUI/bin --workpath /tmp/freeze --specpath /tmp translated_text_boxes_to_pdf.py && rm -rf /tmp/freeze
+RUN pyinstaller --noconfirm --onefile --collect-submodules plugins --distpath /app/GUI/bin --workpath /tmp/freeze --specpath /tmp card_worker.py && pyinstaller --noconfirm --onefile --add-data '/app/assets:assets' --distpath /app/GUI/bin --workpath /tmp/freeze --specpath /tmp template_worker.py && rm -rf /tmp/freeze
 RUN cp /app/pdf_worker /app/GUI/bin/pdf_worker
 COPY . /app
 RUN npm run build:css
-ENV HOME=/tmp/home PYTHONIOENCODING=utf-8
+ENV HOME=/tmp/home PYTHONIOENCODING=utf-8 CARD_MAKER_SMOKE_SOURCE_WORKER=/opt/venv/bin/python
 ENTRYPOINT ["python", "tests/integration/container.py"]

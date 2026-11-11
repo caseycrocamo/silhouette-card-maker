@@ -27,3 +27,6 @@ data
 .env
 .env.*
 integration-results.json
+card_worker
+template_worker
+generate_calibration_sheets

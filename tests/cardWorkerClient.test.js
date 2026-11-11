@@ -35,7 +35,7 @@ test('stop rejects requests and packaged lookup never falls back to Python', asy
   const client=createCardWorkerClient({launch:fake,resolve:()=>({command:'w',args:[]}),env:{}});
   const task=client.request({op:'parse'}); client.stop(); await assert.rejects(task,/stopped/);
   const target=resolveCardWorker({packaged:true,resourcesPath:'/resources',platform:'win32'});
-  assert.equal(target.command,'/resources/bin/card_worker.exe'); assert.deepEqual(target.args,[]);
+  assert.equal(target.command,require('node:path').join('/resources','bin','card_worker.exe')); assert.deepEqual(target.args,[]);
 });
 test('request timeout kills stalled work and allows a fresh request', async () => {
   const children=[];

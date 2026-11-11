@@ -72,8 +72,10 @@ function broadcast() {
 }
 
 function installMocks() {
+  ipcMain.on('get-user-data-dir', event => { event.returnValue = null; });
   const handlers = {
     'get-pdf-capabilities': () => ({version:1,options:[{name:'only_fronts',default:false,is_flag:true},{name:'card_size',default:'standard',choices:['standard']},{name:'paper_size',default:'letter',choices:['letter']}],card_sizes:[{name:'standard',width:'2.5in',height:'3.5in'}],paper_sizes:[{name:'letter',width:'11in',height:'8.5in'}],layouts:[{paper_size:'letter',card_size:'standard',variants:[{name:'default'}]}],specialty_layouts:[]}),
+    'get-calibration-capabilities': () => ({ paper_sizes: [{ name: 'letter', width: '11in', height: '8.5in' }] }),
     'read-offset-data': () => ({ x_offset: 0, y_offset: 0 }),
     'get-default-calibration-pdf': () => '',
     'offset-data-exists': () => true,
@@ -210,6 +212,5 @@ function finish(code) {
   if (removeUpdateIpc) removeUpdateIpc();
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
   windows.clear();
-  process.exitCode = code;
-  app.quit();
+  app.exit(code);
 }

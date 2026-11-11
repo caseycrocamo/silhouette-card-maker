@@ -189,6 +189,7 @@ async function run() {
   win.destroy();
   const preload = path.join(work, 'mtg-preload.cjs');
   fs.writeFileSync(preload, `window.fixtureCards=${JSON.stringify(fixtures)};window.apiRequests=[];window.fetch=async url=>{apiRequests.push(String(url));return {ok:true,json:async()=>String(url).includes('/search')?{data:fixtureCards,has_more:false}:fixtureCards[0]};};`);
+  ipcMain.on('get-user-data-dir', event => { event.returnValue = null; });
   ipcMain.handle('updates:get-state', () => ({ status: 'idle', enabled: false }));
   ipcMain.handle('read-offset-data', () => ({ x_offset: 0, y_offset: 0 }));
   ipcMain.handle('get-default-calibration-pdf', () => '');

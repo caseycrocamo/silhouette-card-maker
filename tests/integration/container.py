@@ -21,7 +21,12 @@ def collect():
     cases += json.loads(subprocess.check_output(["node", "tests/integration/collect-node.cjs"], text=True))
     cases += [dict(suite="worker", name="frozen-worker")]
     cases += [dict(suite="ui", name=n) for n in json.loads(subprocess.check_output(["node", "tests/integration/ui.cjs", "--list"], text=True))]
-    cases += [dict(suite="ui", name="updates", script="tests/update-ui-smoke.cjs")]
+    cases += [dict(suite="ui", name=name, script=f"tests/{script}-smoke.cjs") for name, script in [
+        ("decklist", "card-list"), ("decklist-printing", "printing-selector"),
+        ("custom-layout-calibration", "gui-parity"), ("game-plugins", "game-plugins"),
+        ("template-tools", "template-tools"), ("printer-calibration", "printer-calibration"),
+        ("pdf-settings", "pdf-settings"), ("updates", "update-ui"),
+    ]]
     print("CASES=" + json.dumps(cases))
 
 
