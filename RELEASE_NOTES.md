@@ -1,3 +1,20 @@
+# Silhouette Card Maker 1.4.1
+
+November 11, 2026
+
+## Interface improvements
+
+- Keep navigation labels visible, with numbered steps and check badges for earlier stages.
+- Open Templates and Settings in a sidebar below 1280 pixels. The hamburger changes to an X, and a dotted edge sweeps across the navbar to clear it.
+- Use a faster wipe that matches the page background. Respect reduced-motion settings.
+- Add space around dotted connectors, including at smaller widths.
+- Keep page content and update notices below the navbar.
+
+## Fixes
+
+- Preserve the saved game when a Card List link contains an unknown game value.
+- Restore keyboard focus and page scrolling when the sidebar closes.
+
 # Silhouette Card Maker 1.4.0
 
 November 11, 2026
