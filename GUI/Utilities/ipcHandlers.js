@@ -6,6 +6,8 @@ const {
   runCreatePdf,
   runOffsetPdf,
   preflightCreatePdf,
+  getPdfCapabilities,
+  generateCalibrationSheets,
 } = require("./pdfWorkerClient");
 const { jobActivity } = require("./jobActivity");
 const {
@@ -16,6 +18,9 @@ const {
   getDoubleSidedDir,
   getDataDir,
   getCalibrationDir,
+  getGeneratedCalibrationDir,
+  getCustomLayoutsPath,
+  getLayoutOverridesPath,
 } = require("../shared/constants");
 let watcher = null;
 let doubleSidedWatcher = null;
@@ -345,9 +350,21 @@ ipcMain.handle("open-pdf-output-folder", async (event, folderPath) => {
 
 // Settings and schematic previews are built from the same Python layout resolver.
 // Reading them must not queue behind worker startup or an active PDF job.
-ipcMain.handle("get-pdf-capabilities", () =>
-  require("../shared/pdfCatalog.json"),
-);
+ipcMain.handle("get-pdf-capabilities", async () => {
+  const extras = (process.env.SCM_EXTRA_LAYOUTS || '').split(path.delimiter).filter(Boolean);
+  for (const getDefinitionPath of [getCustomLayoutsPath, getLayoutOverridesPath]) {
+    if (getDefinitionPath && fs.existsSync(getDefinitionPath())) {
+      const custom = JSON.parse(await fs.promises.readFile(getDefinitionPath(), 'utf8'));
+      if (Object.values(custom).some(section => section && Object.keys(section).length)) extras.push(getDefinitionPath());
+    }
+  }
+  if (extras.some(file => fs.existsSync(file))) {
+    const response = await jobActivity.run(() => getPdfCapabilities());
+    if (!response.ok) throw new Error(response.error || 'Cannot load custom layouts.');
+    return response.result;
+  }
+  return require("../shared/pdfCatalog.json");
+});
 
 ipcMain.handle("preflight-create-pdf", async (event, argv) =>
   jobActivity.run(async () => {
@@ -502,44 +519,149 @@ ipcMain.handle("read-offset-data", async () => {
   }
 });
 
-ipcMain.handle(
-  "save-offset-data",
-  async (event, { x_offset, y_offset } = {}) => {
-    const dataDir = getDataDir();
-    await fs.promises.mkdir(dataDir, { recursive: true });
-    const offsetPath = path.join(dataDir, "offset_data.json");
-    let angle_offset = 0;
-    try {
-      const saved = JSON.parse(await fs.promises.readFile(offsetPath, "utf8"));
-      angle_offset = Number(saved.angle_offset) || 0;
-    } catch (err) {
-      // Use the default angle if no valid offset file exists.
+function trustedFeatureSender(event) {
+  if (!require('./updateIpc').isTrustedUpdateSender(event, path.resolve(__dirname, '..')))
+    throw new Error('This command is only available to application pages.');
+}
+function optionalNumber(value, label, { integer = false, min = -Infinity } = {}) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (!['string', 'number'].includes(typeof value) || !Number.isFinite(Number(value)) ||
+      (integer && !Number.isInteger(Number(value))) || Number(value) < min)
+    throw new Error(`Invalid ${label}.`);
+  return Number(value);
+}
+function absoluteFile(value, label) {
+  if (typeof value !== 'string' || !path.isAbsolute(value) || value.includes('\0'))
+    throw new Error(`${label} must be an absolute path.`);
+  return path.resolve(value);
+}
+ipcMain.handle('save-offset-data', async (event, values = {}) => {
+  trustedFeatureSender(event);
+  return jobActivity.run(async () => {
+    const offsetPath = path.join(getDataDir(), 'offset_data.json');
+    let saved = {};
+    try { saved = JSON.parse(await fs.promises.readFile(offsetPath, 'utf8')); }
+    catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
+    const data = {};
+    for (const field of ['x_offset', 'y_offset', 'angle_offset']) {
+      data[field] = optionalNumber(values[field], field, { integer: field !== 'angle_offset' })
+        ?? optionalNumber(saved[field], field, { integer: field !== 'angle_offset' }) ?? 0;
     }
-    const data = {
-      x_offset: Number(x_offset) || 0,
-      y_offset: Number(y_offset) || 0,
-      angle_offset,
-    };
-    await fs.promises.writeFile(
-      offsetPath,
-      JSON.stringify(data, null, 4),
-      "utf8",
-    );
+    await fs.promises.mkdir(getDataDir(), { recursive: true });
+    const temporary = `${offsetPath}.${require('crypto').randomBytes(6).toString('hex')}.tmp`;
+    try {
+      await fs.promises.writeFile(temporary, JSON.stringify(data, null, 4), 'utf8');
+      await fs.promises.rename(temporary, offsetPath);
+    } finally { await fs.promises.rm(temporary, { force: true }); }
     return data;
-  },
-);
-
-ipcMain.handle(
-  "run-offset-pdf",
-  async (event, { pdfPath, xOffset, yOffset, save } = {}) =>
-    jobActivity.run(async () => {
-      const resp = await runOffsetPdf({ pdfPath, xOffset, yOffset, save });
-      if (resp.ok) {
-        return resp.log; // must still contain "Offset PDF: <path>" on success
+  });
+});
+ipcMain.handle('run-offset-pdf', async (event, values = {}) => {
+  trustedFeatureSender(event);
+  const pdfPath = absoluteFile(values.pdfPath, 'Input PDF');
+  const xOffset = optionalNumber(values.xOffset, 'X offset', { integer: true });
+  const yOffset = optionalNumber(values.yOffset, 'Y offset', { integer: true });
+  const angle = optionalNumber(values.angle, 'angle');
+  const ppi = optionalNumber(values.ppi, 'PPI', { integer: true, min: 1 });
+  const outputPdfPath = values.outputPdfPath ? absoluteFile(values.outputPdfPath, 'Output PDF') : undefined;
+  if (values.save !== undefined && typeof values.save !== 'boolean') throw new Error('Invalid save option.');
+  return jobActivity.run(async () => {
+    const response = await runOffsetPdf({ pdfPath, xOffset, yOffset, angle, ppi, outputPdfPath, save: values.save ?? false });
+    if (!response.ok) throw new Error(response.error || 'Offset failed.');
+    return response.log;
+  });
+});
+ipcMain.handle('get-calibration-capabilities', async event => {
+  trustedFeatureSender(event);
+  return jobActivity.run(async () => {
+    const response = await getPdfCapabilities();
+    if (!response.ok) throw new Error(response.error || 'Cannot load paper sizes.');
+    return response.result;
+  });
+});
+ipcMain.handle('generate-calibration-sheets', async (event, { paperSizes, outputDir, ppi } = {}) => {
+  trustedFeatureSender(event);
+  if (paperSizes !== undefined && (!Array.isArray(paperSizes) || paperSizes.some(size => typeof size !== 'string')))
+    throw new Error('Invalid paper sizes.');
+  const destination = outputDir ? absoluteFile(outputDir, 'Output folder') : getGeneratedCalibrationDir();
+  const resolution = optionalNumber(ppi, 'PPI', { integer: true, min: 1 }) ?? 300;
+  return jobActivity.run(async () => {
+    const response = await generateCalibrationSheets({ paperSizes, outputDir: destination, ppi: resolution });
+    if (!response.ok) throw new Error(response.error || 'Calibration generation failed.');
+    return response.result;
+  });
+});
+ipcMain.handle('template-request', async (event, payload) => {
+  trustedFeatureSender(event);
+  if (!payload || !['list', 'single', 'batch', 'optimize', 'batch_manifest'].includes(payload.command))
+    throw new Error('Invalid template command.');
+  return jobActivity.run(() => require('./templateWorkerClient').requestTemplate(payload));
+});
+const templateBatches = new Map();
+ipcMain.handle('template-batch', async (event, { mode, output_dir } = {}) => {
+  trustedFeatureSender(event);
+  if (!['missing', 'all', 'optimize'].includes(mode)) throw new Error('Invalid batch mode.');
+  if (templateBatches.has(event.sender)) throw new Error('A template batch is already running.');
+  const destination = output_dir ? absoluteFile(output_dir, 'Template folder') : undefined;
+  const state = { canceled: false };
+  templateBatches.set(event.sender, state);
+  const cancel = () => { state.canceled = true; };
+  event.sender.once('destroyed', cancel);
+  event.sender.on('did-start-navigation', cancel);
+  try {
+    return await jobActivity.run(async () => {
+      const { requestTemplate } = require('./templateWorkerClient');
+      const manifest = await requestTemplate({ command: 'batch_manifest', mode, output_dir: destination });
+      const items = [];
+      const candidates = manifest.items || [];
+      for (const candidate of candidates) {
+        if (state.canceled || event.sender.isDestroyed()) break;
+        let item = candidate;
+        if (!candidate.skipped) {
+          try { item = await requestTemplate({ ...candidate, command: 'single', save: mode === 'optimize' }); }
+          catch (error) { item = { ...candidate, ok: false, error: error.message }; }
+        }
+        items.push(item);
+        if (!event.sender.isDestroyed()) event.sender.send('template-batch-progress', {
+          completed: items.length, total: candidates.length, item,
+        });
       }
-      throw new Error(resp.error || "Exited with error");
-    }),
-);
+      return { ok: items.every(item => item.ok !== false), canceled: state.canceled,
+        completed: items.length, total: candidates.length, items };
+    });
+  } finally {
+    templateBatches.delete(event.sender);
+    event.sender.removeListener('destroyed', cancel);
+    event.sender.removeListener('did-start-navigation', cancel);
+  }
+});
+ipcMain.handle('cancel-template-request', async event => {
+  trustedFeatureSender(event);
+  const batch = templateBatches.get(event.sender);
+  if (batch) { batch.canceled = true; return { canceled: true }; }
+  return require('./templateWorkerClient').cancelTemplateRequest();
+});
+ipcMain.handle('select-template-path', async (event, { kind, defaultPath } = {}) => {
+  trustedFeatureSender(event);
+  if (kind === 'directory') {
+    const result = await dialog.showOpenDialog({ defaultPath, properties: ['openDirectory', 'createDirectory'] });
+    return result.canceled ? null : result.filePaths[0];
+  }
+  if (kind !== 'dxf') throw new Error('Invalid template path kind.');
+  const result = await dialog.showSaveDialog({ defaultPath, filters: [{ name: 'DXF', extensions: ['dxf'] }] });
+  return result.canceled ? null : result.filePath;
+});
+ipcMain.handle('select-card-input', async (event, { kind = 'file' } = {}) => {
+  trustedFeatureSender(event);
+  if (!['file', 'directory', 'image'].includes(kind)) throw new Error('Invalid card input kind.');
+  const result = await dialog.showOpenDialog({ properties: [kind === 'directory' ? 'openDirectory' : 'openFile'] });
+  if (result.canceled || !result.filePaths?.length) return null;
+  const selected = result.filePaths[0];
+  if (kind === 'directory' || kind === 'image') return { path: selected };
+  const stat = await fs.promises.stat(selected);
+  if (!stat.isFile() || stat.size > 2 * 1024 * 1024) throw new Error('Choose a file smaller than 2 MB.');
+  return { path: selected, text: await fs.promises.readFile(selected, 'utf8') };
+});
 
 ipcMain.handle("run-md-to-pdf", async (event, options = {}) =>
   jobActivity.run(async () => {
@@ -753,7 +875,7 @@ ipcMain.handle("upload-double-sided-images", async (event, directory) => {
 const cardCacheRoot = path.join(getDataDir(), 'card-cache');
 ipcMain.handle('card-request', async (event, payload) => jobActivity.run(async () => {
   if (!require('./updateIpc').isTrustedUpdateSender(event, path.resolve(__dirname, '..'))) throw new Error('Card commands are only available to application pages.');
-  if (!payload || !['parse', 'resolve', 'release'].includes(payload.op)) throw new Error('Invalid card operation.');
+  if (!payload || !['parse', 'resolve', 'release', 'capabilities', 'import'].includes(payload.op)) throw new Error('Invalid card operation.');
   if (payload.op === 'parse' && (typeof payload.text !== 'string' || payload.text.length > 1000000)) throw new Error('Invalid deck list.');
   if (payload.op === 'release' && (!Array.isArray(payload.cacheIds) || payload.cacheIds.some(id => !/^[a-f0-9]{32}$/.test(id)))) throw new Error('Invalid card cache IDs.');
   return require('./cardWorkerClient').requestCards(payload);

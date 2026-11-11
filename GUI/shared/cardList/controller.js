@@ -5,7 +5,7 @@ function createController({
   onDraft = () => {},
 }) {
   let generation = 0;
-  const state = { entries: [], errors: [], status: "empty", draft: "" };
+  const state = { entries: [], errors: [], warnings: [], status: "empty", draft: "" };
   const notify = () => onChange(state);
   function dirty(text) {
     generation++;
@@ -13,6 +13,7 @@ function createController({
     state.status = text.trim() ? "dirty" : "empty";
     state.entries = [];
     state.errors = [];
+    state.warnings = [];
     onDraft(text);
     notify();
   }
@@ -24,7 +25,7 @@ function createController({
     if (!retry) state.errors = [];
     notify();
     try {
-      const parsed = retry
+      const parsed = retry && !adapter.reimportOnRetry
         ? { entries: state.entries, errors: previousErrors }
         : await adapter.parse(text);
       if (token !== generation) return;
@@ -33,12 +34,14 @@ function createController({
         status: e.printing && retry ? "ready" : "loading",
       }));
       state.errors = parsed.errors || [];
+      state.warnings = parsed.warnings || [];
       notify();
       const resolved = new Map();
       for (const entry of state.entries) {
         if (entry.status === "ready") continue;
         try {
           const identity = JSON.stringify([
+            entry.printing?.id,
             entry.name,
             entry.setCode,
             entry.number,
@@ -61,13 +64,14 @@ function createController({
         notify();
       }
       if (token !== generation) return;
-      state.status =
-        state.errors.length || state.entries.some((e) => e.status !== "ready")
-          ? "error"
-          : state.entries.length
-            ? "ready"
-            : "empty";
-      if (state.status === "ready") {
+      state.status = state.entries.some((e) => e.status !== "ready")
+        ? "error"
+        : state.errors.length && adapter.allowPartial
+          ? "partial"
+          : state.errors.length
+            ? "error"
+            : state.entries.length ? "ready" : "empty";
+      if (state.status === "ready" || state.status === "partial") {
         state.draft = adapter.serialize(state.entries);
         onDraft(state.draft);
       }
@@ -138,7 +142,7 @@ function createController({
     changePrinting,
     applyPrinting,
     canExport: () =>
-      state.status === "ready" && !state.entries.some((e) => e.changing),
+      Boolean((state.status === "ready" || (adapter.allowPartial && state.status === "partial")) && !state.entries.some((e) => e.changing)),
     cancel: () => generation++,
   };
 }

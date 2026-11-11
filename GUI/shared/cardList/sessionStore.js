@@ -1,12 +1,24 @@
 "use strict";
 function createStore(storage, game) {
-  const key = `card-list:v1:${game}`;
+  const selectionKey = `card-list:v1:${game}:selection`;
+  const keyFor = (format = 'default') => `card-list:v1:${game}:${format}`;
   return {
-    load() {
+    load(format) {
+      let selection = {};
       try {
-        const saved = JSON.parse(storage.getItem(key));
-        if (saved && typeof saved.draft === "string")
-          return { draft: saved.draft, workflow: saved.workflow };
+        selection = JSON.parse(storage.getItem(selectionKey)) || {};
+      } catch {}
+      const selectedFormat = format || selection.format || 'default';
+      try {
+        const saved = JSON.parse(storage.getItem(keyFor(selectedFormat)));
+        if (saved && typeof saved.draft === "string") return { ...saved, format: selectedFormat };
+      } catch {}
+      // Keep drafts saved before storage was split by format.
+      try {
+        const legacy = JSON.parse(storage.getItem(`card-list:v1:${game}`));
+        if (legacy && typeof legacy.draft === 'string' &&
+            (selectedFormat === (legacy.format || 'default') || (!format && !selection.format)))
+          return { ...legacy, format: legacy.format || selectedFormat };
       } catch {}
       let draft = game === "mtg" ? storage.getItem("mtg-decklist") || "" : "";
       if (game === "mtg" && !draft) {
@@ -29,12 +41,16 @@ function createStore(storage, game) {
       }
       return {
         draft,
+        format: selectedFormat,
         workflow:
           game === "mtg" ? storage.getItem("cardWorkflow") : "front_only",
       };
     },
-    save(draft, workflow) {
-      storage.setItem(key, JSON.stringify({ draft, workflow }));
+    save(draft, workflow, options = {}) {
+      const format = options.format || this.load().format || 'default';
+      const current = this.load(format);
+      storage.setItem(keyFor(format), JSON.stringify({ ...current, ...options, format, draft, workflow }));
+      storage.setItem(selectionKey, JSON.stringify({ format }));
       storage.setItem("activeGame", game);
     },
   };

@@ -230,11 +230,11 @@ For more help, see the main project README or contact the project maintainer.
 
 ### Pokémon and shared card lists
 
-Choose Pokémon on Home, then select **Use a Limitless deck list**. Paste lines in the form `3 Charcadet SSP 32`. Category headers and blank lines are allowed. Each card needs a quantity, name, set code, and card number. Pokémon TCG and Pocket use the same input area. Review errors and retry missing images before selecting **Next: Create PDF**.
+Choose Pokémon on Home to open a Limitless deck list. Paste lines in the form `3 Charcadet SSP 32`. Category headers and blank lines are allowed. Each card needs a quantity, name, set code, and card number. Pokémon TCG and Pocket use the same input area. Review errors and retry missing images before selecting **Next: Create PDF**.
 
 Pokémon starts with card fronts only. To print a common back, enable backs on the PDF page and choose your own image. Pocket image sources can have lower print quality. Exact printings that cannot be found produce an error instead of substituting another set.
 
-MTG card lists and Text Translation share one game card on Home. The current numbered navigation stays in place. Each game's draft and workflow are saved separately for the current app session.
+All games use the same buttons on Home. Choose Magic: The Gathering, then choose card images or Text translation in the popup. The current numbered navigation stays in place. Each game's draft and workflow are saved separately for the current app session.
 
 ### Choose an MTG printing
 
@@ -247,3 +247,47 @@ A checkmark shows the choice in the panel. Select **Use this printing** to apply
 MTG card images are cached in memory for the app session. The printing panel, deck preview, and image export share each downloaded image. Changing pages keeps the cache. Closing all app windows or quitting clears it. This cache does not write files to disk.
 
 The card worker runs separately from the PDF worker. Development can use the project virtual environment. Packaged apps require the `card_worker` executable (or `card_worker.exe` on Windows) in `GUI/bin`, with no local Python installation. The standard entrypoint build discovers this worker. Build and copy entrypoints before making a release.
+
+### CLI feature controls
+
+Home lists all supported games together. Select a game, then choose its deck format,
+image source, and print setup in the options popup when choices are available.
+The card list keeps these controls in the **Options** popup. Cancel or Escape
+discards changes. Each format keeps its own draft and choices. Imports stage downloaded images in the card cache. Use the
+existing export or **Next: Create PDF** action to write print images. A failed
+import does not clear existing print images.
+
+**Tools → Cutting templates** creates DXF files from named or custom sizes. Select
+a DXF destination for one template, or an output folder for a batch. Saved custom
+sizes and layouts are stored in the app data folder and become available in PDF
+settings. The app keeps bundled layout definitions unchanged. This screen does
+not convert DXF files to Silhouette Studio files.
+
+**Settings → Printer offsets** includes rotation, per-run overrides, PPI, and an
+output PDF path. Blank overrides use saved values; applying a PDF does not save
+those overrides. Positive X moves right, positive Y moves up, and positive rotation
+turns clockwise in the back-page frame. Calibration sheets can be generated for
+selected configured paper sizes. Generated sheets are stored in a writable folder,
+separate from the supplied calibration PDFs.
+
+After changes to Python workers, rebuild and stage the entrypoints before running
+the packaged app. `card_worker` includes all plugin modules. `template_worker` is
+required for Tools. Existing installed binaries do not gain features from source
+changes alone.
+
+
+For the new controls, activate the project Python environment with pytest installed,
+then run `npm run test:gui-backends` and `npm test`. Use
+`npm run test:game-plugins-ui`, `npm run test:template-tools-ui`, and
+`npm run test:printer-calibration-ui` for the page checks. Set
+`CARD_MAKER_SMOKE_SOURCE_WORKER` to the project Python executable for the printer
+check. `npm run test:gui-parity-ui` checks the full custom-template-to-calibration
+path with isolated source workers; it uses `venv/bin/python` unless that environment
+variable is set. Match Electron and Python architectures on macOS.
+
+
+Game option menus load from the bundled `GUI/shared/gameCatalog.json`. Opening a
+menu or a blank card list does not start the card worker. Python starts when card
+lookup or import is needed. Both entrypoint build scripts refresh the catalog.
+After changing `plugins/gui_game_metadata.py`, run
+`python scripts/export_game_catalog.py`; the catalog parity test checks the result.

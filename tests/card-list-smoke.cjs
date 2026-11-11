@@ -24,7 +24,7 @@ async function run(){
  win=new BrowserWindow({show:false,width:1440,height:1100,webPreferences:{nodeIntegration:true,contextIsolation:false}});
  win.webContents.on('console-message',(_e,level,message)=>{if(level===3)errors.push(message);});
  await win.loadFile(path.join(root,'GUI/CardList/decklist.html'),{query:{game:'pokemon'}});
- await wait(()=>js("!!document.getElementById('longText')"));
+ await wait(()=>js("!!document.getElementById('longText') && !document.getElementById('longText').disabled"));
  await js("document.getElementById('longText').value='2 Pikachu SVI 047';document.getElementById('longText').dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('longForm').requestSubmit()");
  await wait(()=>js("!document.getElementById('nextCreatePdfBtn').disabled"));
  assert.match(await js('document.body.innerText'),/Pikachu/);
@@ -39,8 +39,9 @@ async function run(){
  assert.equal(await js("sessionStorage.getItem('onlyFronts')"),'true');
  assert.equal(await js("sessionStorage.getItem('activeGame')"),'pokemon');
  await win.loadFile(path.join(root,'GUI/Home/home.html'));
- assert.match(await js('document.body.innerText'),/Use a Limitless deck list/);
- assert.match(await js('document.body.innerText'),/Text Translation/);
+ assert.equal(await js("document.querySelectorAll('#gamePicker button').length"),22);
+ assert.equal(await js("document.querySelector('#gamePicker [data-game=pokemon]').textContent"),'Pokémon');
+ assert.equal(await js("document.querySelector('#gamePicker [data-game=mtg]').textContent"),'Magic: The Gathering');
  await win.setSize(680,900); // Electron minimum; renderer widths also tested below.
  await js("document.documentElement.style.width='375px'");
  assert.ok(!errors.some(e=>e.includes('Uncaught')),errors.join('\n'));

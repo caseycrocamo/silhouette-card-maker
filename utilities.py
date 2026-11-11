@@ -240,6 +240,22 @@ def load_layout_config() -> LayoutConfig:
     with open(layouts_path, 'r') as f:
         raw_config = json.load(f)
     merge_extra_layouts(raw_config)
+    # The app stores optimized geometry separately from immutable bundled layouts.
+    # This optional file updates layout definitions only; size additions still use
+    # the existing extra-layout mechanism. Ordinary CLI behavior is unchanged.
+    overrides_path = os.environ.get('SCM_LAYOUT_OVERRIDES')
+    if overrides_path:
+        with open(overrides_path, encoding='utf-8') as stream:
+            overrides = json.load(stream)
+        if set(overrides) - {'layouts'}:
+            raise ValueError('Layout overrides can contain only layout definitions.')
+        for paper, cards in overrides.get('layouts', {}).items():
+            if paper not in raw_config['paper_sizes']:
+                raise ValueError(f'Unknown override paper size: {paper}')
+            for card, variants in cards.items():
+                if card not in raw_config['card_sizes']:
+                    raise ValueError(f'Unknown override card size: {card}')
+                raw_config['layouts'].setdefault(paper, {}).setdefault(card, {}).update(variants)
     return LayoutConfig(**raw_config)
 
 

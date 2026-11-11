@@ -107,7 +107,7 @@ function renderResults(
       el(
         "p",
         printing
-          ? `${printing.setCode} ${printing.number}`
+          ? [printing.setCode, printing.number].filter(Boolean).join(" ") || "Image ready"
           : entry.status === "loading"
             ? "Loading image…"
             : entry.error,
@@ -204,6 +204,11 @@ function renderResults(
       }
     }
   }
+  for (const warning of state.warnings || []) {
+    const message = el("p", warning.message || String(warning), "text-sm text-content-light mt-2");
+    message.setAttribute("role", "status");
+    container.appendChild(message);
+  }
   if (
     state.entries.some((e) => e.status === "error") &&
     state.status !== "loading"
@@ -213,6 +218,10 @@ function renderResults(
         { text: "Retry failed cards", size: "compact", onClick: onRetry },
         doc,
       ),
+    );
+  else if (state.errors.length && adapter.reimportOnRetry && state.status !== "loading")
+    container.appendChild(
+      createButton({ text: "Retry import", size: "compact", onClick: onRetry }, doc),
     );
 }
 module.exports = { renderResults };

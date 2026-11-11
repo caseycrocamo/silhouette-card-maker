@@ -6,7 +6,8 @@
     <title>Silhouette Card Maker - Home</title>
     <link rel="stylesheet" href="../styles/main.css">
     <script type="text/javascript" src="../shared/navbar.js"></script>
-    <script type="text/javascript" src="home.js"></script>
+    <link rel="stylesheet" href="../shared/gameOptions.css">
+    <script defer src="home.js"></script>
 </head>
 <body class="min-h-screen bg-surface text-content">
     <nav-bar current-step="1"></nav-bar>
@@ -28,19 +29,10 @@
     <header class="paper-element text-center mb-12 p-8">
             <h1 class="text-4xl font-bold text-primary-dark mb-4">Choose your game</h1>
             <p class="text-primary text-lg mb-8">Build a card list, then create a print PDF.</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                <section class="paper-surface p-6">
-                    <h2 class="text-2xl font-semibold mb-6">Magic: The Gathering</h2>
-                    <div class="flex flex-col gap-4">
-                        <a class="paper-button" href="../CardList/decklist.html?game=mtg">Search cards and select printings</a>
-                        <a class="paper-button" href="../MagicTheGathering/text_translation.html">Text Translation</a>
-                    </div>
-                </section>
-                <section class="paper-surface p-6">
-                    <h2 class="text-2xl font-semibold mb-6">Pokémon</h2>
-                    <a class="paper-button block" href="../CardList/decklist.html?game=pokemon">Use a Limitless deck list</a>
-                </section>
-            </div>
-    </header>
+            <div id="gamePicker" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl mx-auto" aria-label="Games"></div>
+            <p id="gamePickerError" class="text-red-300 mt-4" role="alert"></p>
+        </header>
+    </div>
+    </main>
 </body>
 </html>

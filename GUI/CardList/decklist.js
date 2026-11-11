@@ -1,164 +1,140 @@
 "use strict";
-(() => {
+(async () => {
   const { ipcRenderer } = require("electron");
   const { getGame } = require("../shared/cardList/gameRegistry");
   const { createStore } = require("../shared/cardList/sessionStore");
   const { createController } = require("../shared/cardList/controller");
   const { renderResults } = require("../shared/cardList/resultsGrid");
-  const {
-    closePrintingSelector,
-  } = require("../MagicTheGathering/printingSelector");
-  const get = (id) => document.getElementById(id);
+  const { closePrintingSelector } = require("../MagicTheGathering/printingSelector");
+  const { loadGameOptions, normalizeOptions, chooseGameOptions, saveGameOptions, optionsSummary, hasGameOptions } = require("../shared/gameOptions");
+  const get = id => document.getElementById(id);
+  const request = payload => ipcRenderer.invoke("card-request", payload);
   let game;
+  get("longText").disabled = true;
+  get("searchBtn").disabled = true;
   try {
-    game = getGame(
-      new URLSearchParams(location.search).get("game") ||
-        sessionStorage.getItem("activeGame") ||
-        "mtg",
-    );
+    game = getGame(new URLSearchParams(location.search).get("game") || sessionStorage.getItem("activeGame") || "mtg");
+    get("gameTitle").textContent = `${game.name} card list`;
+    document.title = `${game.name} - Card List`;
+    get("gameOptionsSummary").textContent = "Loading game options…";
+    game = loadGameOptions(game);
   } catch (error) {
-    get("gameTitle").textContent = error.message;
+    get("exportError").textContent = error.message;
+    get("gameOptionsSummary").textContent = "Game options could not load.";
+    get("gameOptionsBtn").hidden = false;
+    get("gameOptionsBtn").textContent = "Retry";
+    get("gameOptionsBtn").onclick = () => location.reload();
     return;
   }
   sessionStorage.setItem("activeGame", game.id);
-  const adapter =
-    game.id === "mtg"
-      ? require("./adapters/mtg").createAdapter()
-      : require("./adapters/pokemon").createAdapter((req) =>
-          ipcRenderer.invoke("card-request", req),
-        );
-  const store = createStore(sessionStorage, game.id),
-    saved = store.load();
-  let workflow = game.workflows.includes(saved.workflow)
-    ? saved.workflow
-    : game.defaultWorkflow;
+  const store = createStore(sessionStorage, game.id);
+  let options = normalizeOptions(game, store.load());
+  const saved = store.load(options.format);
+  options = normalizeOptions(game, saved, options.format);
   let exporting = false;
-  const save = (draft) => store.save(draft, workflow);
-  get("gameTitle").textContent = `${game.name} card list`;
-  document.title = `${game.name} - Card List`;
-  get("printingHint").hidden = game.id !== "mtg";
-  get("syntaxHelp").textContent = game.help;
-  get("longText").placeholder = game.example;
-  get("longText").value = saved.draft;
-  if (game.workflows.length === 1) get("workflow").textContent = "Fronts only";
-  else
-    for (const mode of game.workflows) {
-      const label = document.createElement("label");
-      label.className = "inline-flex items-center gap-2 mr-6";
-      const radio = document.createElement("input");
-      radio.type = "radio";
-      radio.name = "cardWorkflow";
-      radio.value = mode;
-      radio.checked = workflow === mode;
-      radio.addEventListener("change", () => {
-        workflow = mode;
-        save(get("longText").value);
+  const save = draft => store.save(draft, options.workflow, options);
+  const adapter = game.id === "mtg" ? require("./adapters/mtg").createAdapter() :
+    game.id === "pokemon" ? require("./adapters/pokemon").createAdapter(request) :
+      require("./adapters/plugin").createAdapter(game, request, {
+        format: options.format,
+        input: async (value, kind) => {
+          if (kind !== "file") return { kind, value };
+          const selected = await ipcRenderer.invoke("select-card-input", { kind: "file" });
+          if (!selected) throw new Error("Import canceled.");
+          return { kind, value: selected.path };
+        },
+        readOptions: () => ({ source: options.source, scenario: options.scenario, localBackDir: options.localBackDir }),
       });
-      label.append(
-        radio,
-        document.createTextNode(
-          mode === "front_only" ? "Front Only" : "Double Sided",
-        ),
-      );
-      get("workflow").appendChild(label);
-    }
-  get("workflowHelp").textContent =
-    game.id === "mtg"
-      ? "Front Only prints both faces separately. Double Sided pairs the fronts and backs of double-faced cards."
-      : "Use the PDF page to change page size, cut guides, and other print settings. A common back can be enabled there.";
+
+  function renderOptions() {
+    get("gameOptionsSummary").textContent = optionsSummary(game, options);
+    get("gameOptionsBtn").hidden = !hasGameOptions(game);
+    const format = game.formats.find(item => item.id === options.format);
+    const help = { url: "Enter a deck URL or ID for this format.", file: "Select Open deck file to choose your deck list.", opaque: "Paste your deck code." };
+    get("syntaxHelp").textContent = help[format?.inputKind] || game.help;
+    get("longText").readOnly = format?.inputKind === "file";
+    get("longText").placeholder = game.example || "";
+    get("searchBtn").textContent = format?.inputKind === "file" ? "Open deck file" : "Search cards";
+  }
+  get("printingHint").hidden = game.id !== "mtg";
+  renderOptions();
+  get("longText").value = saved.draft;
+  get("longText").disabled = false;
   const controller = createController({
     adapter,
-    onDraft: (draft) => {
-      get("longText").value = draft;
-      save(draft);
-    },
-    onChange: (state) => {
+    onDraft: draft => { get("longText").value = draft; save(draft); },
+    onChange: state => {
       const ready = controller.canExport();
       get("nextCreatePdfBtn").disabled = !ready || exporting;
       get("exportBtn").disabled = !ready || exporting;
       get("searchBtn").disabled = state.status === "loading" || exporting;
-      const count = state.entries.filter((e) => e.status === "ready").length;
-      const copies = state.entries
-        .filter((e) => e.status === "ready")
-        .reduce((n, e) => n + e.qty, 0);
-      get("resultStatus").textContent =
-        state.status === "loading"
-          ? `Loading cards: ${count} of ${state.entries.length} entries ready`
-          : `${count} entries ready · ${copies} cards${state.status === "dirty" ? " · Search again after edits" : ""}`;
-      renderResults(get("output"), state, {
-        adapter,
-        onPrinting: controller.changePrinting,
-        onPrintingExact: controller.applyPrinting,
+      get("gameOptionsBtn").disabled = state.status === "loading" || exporting;
+      const entries = state.entries.filter(item => item.status === "ready");
+      const copies = entries.reduce((count, item) => count + item.qty, 0);
+      get("resultStatus").textContent = state.status === "loading" ?
+        `Loading cards: ${entries.length} of ${state.entries.length} entries ready` :
+        `${entries.length} entries ready · ${copies} cards${state.status === "dirty" ? " · Search again after edits" : ""}`;
+      renderResults(get("output"), state, { adapter,
+        onPrinting: controller.changePrinting, onPrintingExact: controller.applyPrinting,
         onRetry: () => controller.search(state.draft, true),
       });
     },
   });
+  get("gameOptionsBtn").onclick = async () => {
+    closePrintingSelector();
+    const choice = await chooseGameOptions({ game, storage: sessionStorage,
+      trigger: get("gameOptionsBtn"), alwaysShow: true, mode: "cards",
+      chooseDirectory: () => ipcRenderer.invoke("select-card-input", { kind: "directory" }),
+    });
+    if (!choice) return;
+    const next = normalizeOptions(choice.game, choice);
+    const lookupChanged = ["format", "source", "scenario", "localBackDir"].some(key => next[key] !== options[key]);
+    const nextSaved = saveGameOptions(sessionStorage, game, choice);
+    if (choice.mode === "translation") { location.href = "../MagicTheGathering/text_translation.html"; return; }
+    game = choice.game;
+    options = next;
+    adapter.setFormat?.(options.format);
+    renderOptions();
+    if (lookupChanged) controller.dirty(nextSaved.draft);
+    else save(controller.state.draft);
+  };
   get("longText").addEventListener("input", () => {
     closePrintingSelector();
     controller.dirty(get("longText").value);
   });
-  get("longForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    closePrintingSelector();
-    controller.search(get("longText").value);
+  get("longForm").addEventListener("submit", event => {
+    event.preventDefault(); closePrintingSelector(); controller.search(get("longText").value);
   });
   get("exportBtn").addEventListener("click", () => {
     if (!controller.canExport()) return;
-    const url = URL.createObjectURL(
-      new Blob([adapter.serialize(controller.state.entries)], {
-        type: "text/plain",
-      }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${game.id}-decklist.txt`;
-    link.click();
+    const url = URL.createObjectURL(new Blob([adapter.serialize(controller.state.entries)], { type: "text/plain" }));
+    const link = document.createElement("a"); link.href = url; link.download = `${game.id}-decklist.txt`; link.click();
     URL.revokeObjectURL(url);
   });
   get("nextCreatePdfBtn").addEventListener("click", async () => {
     if (!controller.canExport() || exporting) return;
     exporting = true;
-    get("longText").disabled = true;
-    get("nextCreatePdfBtn").disabled = true;
-    get("searchBtn").disabled = true;
-    get("exportBtn").disabled = true;
+    for (const id of ["longText", "nextCreatePdfBtn", "searchBtn", "exportBtn", "gameOptionsBtn"]) get(id).disabled = true;
     get("exportError").textContent = "";
-    for (const control of get("output").querySelectorAll("select,button"))
-      control.disabled = true;
-    for (const control of get("workflow").querySelectorAll("input"))
-      control.disabled = true;
-    window.showLoadingOverlay?.({
-      title: "Preparing Cards",
-      message: "Checking and saving card images…",
-    });
+    for (const control of get("output").querySelectorAll("select,button")) control.disabled = true;
+    window.showLoadingOverlay?.({ title: "Preparing cards", message: "Checking and saving card images…" });
     try {
-      const result = await ipcRenderer.invoke("card-export", {
-        plan: adapter.exportPlan(controller.state.entries, workflow),
-      });
+      const result = await ipcRenderer.invoke("card-export", { plan: adapter.exportPlan(controller.state.entries, options.workflow) });
       if (result?.canceled || result?.cancelled) return;
-      sessionStorage.setItem("onlyFronts", String(workflow === "front_only"));
+      sessionStorage.setItem("onlyFronts", String(options.workflow === "front_only"));
       save(get("longText").value);
       location.href = "../CreatePDF/create.html";
     } catch (error) {
-      get("exportError").textContent = error.message || String(error);
-      get("exportError").focus();
+      get("exportError").textContent = error.message || String(error); get("exportError").focus();
     } finally {
-      for (const control of get("output").querySelectorAll("select,button"))
-        control.disabled = false;
-      for (const control of get("workflow").querySelectorAll("input"))
-        control.disabled = false;
+      for (const control of get("output").querySelectorAll("select,button")) control.disabled = false;
       exporting = false;
-      get("longText").disabled = false;
-      get("searchBtn").disabled = false;
-      get("exportBtn").disabled = !controller.canExport();
-      get("nextCreatePdfBtn").disabled = !controller.canExport();
+      get("longText").disabled = false; get("searchBtn").disabled = false; get("gameOptionsBtn").disabled = false;
+      get("exportBtn").disabled = !controller.canExport(); get("nextCreatePdfBtn").disabled = !controller.canExport();
       window.hideLoadingOverlay?.();
     }
   });
-  window.addEventListener("beforeunload", () => {
-    closePrintingSelector();
-    controller.cancel();
-  });
+  window.addEventListener("beforeunload", () => { closePrintingSelector(); controller.cancel(); });
   controller.dirty(saved.draft);
-  if (saved.draft.trim()) controller.search(saved.draft);
+  if (saved.draft.trim() && game.formats.find(item => item.id === options.format)?.inputKind !== "file") controller.search(saved.draft);
 })();

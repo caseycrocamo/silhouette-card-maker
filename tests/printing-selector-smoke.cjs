@@ -176,7 +176,7 @@ async function run() {
   await choose('borderless');
   await waitFor("Array.from(document.querySelectorAll('#printingSelectorDialog img')).every(i=>i.complete && i.naturalWidth>0)", 'Fixture images load');
   assert.equal(imageRequests.get(imageHost+'borderless.png'),1,'Reopening and rebuilding previews reuse one image download');
-  const screenshot = path.join(root, 'designs/printing-selector-concepts/implemented-side-panel.png');
+  const screenshot = path.join(work, 'implemented-side-panel.png');
   fs.mkdirSync(path.dirname(screenshot), { recursive: true });
   fs.writeFileSync(screenshot, (await win.webContents.capturePage()).toPNG());
   win.setSize(375, 812);
@@ -229,7 +229,7 @@ async function run() {
   assert.equal(await js("document.querySelectorAll('#output article').length"), 1, 'No extra deck entries');
   assert(await js("document.activeElement.id.startsWith('change-printing-')"), 'Apply returns focus to the new trigger');
   assert.match(await js("document.getElementById('output').innerText"), /×3/);
-  assert.equal(await js("JSON.parse(sessionStorage.getItem('card-list:v1:mtg')).draft"), '3x Sol Ring (CMM) 659');
+  assert.equal(await js("require('../shared/cardList/sessionStore').createStore(sessionStorage,'mtg').load().draft"), '3x Sol Ring (CMM) 659');
   await js("document.querySelector('[id^=change-printing-]').focus()");
   win.webContents.sendInputEvent({type:'keyDown',keyCode:'Space'});
   win.webContents.sendInputEvent({type:'keyUp',keyCode:'Space'});

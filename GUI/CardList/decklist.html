@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../styles/main.css" />
     <link rel="stylesheet" href="../MagicTheGathering/printingSelector.css" />
     <link rel="stylesheet" href="decklist.css" />
+    <link rel="stylesheet" href="../shared/gameOptions.css" />
     <script src="../shared/navbar.js"></script>
     <script src="../shared/loadingOverlay.js"></script>
     <script defer src="decklist.js"></script>
@@ -18,11 +19,15 @@
         <div>
           <h1 id="gameTitle" class="text-4xl font-bold mb-3">Card list</h1>
           <p>Paste a deck list. Review each card before you create the PDF.</p>
+          <p id="gameOptionsSummary" class="text-sm text-content-light mt-2" role="status"></p>
           <p id="printingHint" class="text-sm text-content-light mt-2" hidden>
             <em>Click a card image to change its printing.</em>
           </p>
         </div>
-        <a href="../Home/home.html" class="paper-button">Change game</a>
+        <div class="flex flex-wrap gap-3">
+          <button id="gameOptionsBtn" class="paper-button" type="button" hidden>Options</button>
+          <a href="../Home/home.html" class="paper-button">Change game</a>
+        </div>
       </header>
       <div class="card-list-workspace grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <section class="card-list-editor paper-element p-6">
@@ -62,10 +67,7 @@
         </section>
       </div>
       <section class="card-list-workflow paper-element p-6 mt-8">
-        <h2 class="text-xl font-semibold mb-4">Printing workflow</h2>
-        <div id="workflow"></div>
-        <p id="workflowHelp" class="text-sm text-content-light mt-3"></p>
-        <button id="nextCreatePdfBtn" class="paper-button mt-6" disabled>
+        <button id="nextCreatePdfBtn" class="paper-button" disabled>
           Next: Create PDF
         </button>
         <p

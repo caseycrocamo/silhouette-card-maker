@@ -23,6 +23,12 @@ GUI/dist
 GUI/bin/
 data
 # Compiled binaries and build artifacts
+/card_worker
+/template_worker
+/dxf_to_studio3
+/generate_calibration
+/generate_dxf
+/generate_readme_tables
 *.exe
 *.spec
 create_pdf

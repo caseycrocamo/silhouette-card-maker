@@ -40,9 +40,17 @@ function getFileHash(filePath) {
 }
 
 function getCurrentHash() {
-  const pluginInputs = fs.readdirSync(path.join(PROJECT_ROOT, 'plugins/pokemon')).filter(file => file.endsWith('.py')).map(file => 'plugins/pokemon/' + file);
+  function pythonInputs(directory) {
+    return fs.readdirSync(path.join(PROJECT_ROOT, directory), { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .flatMap(entry => entry.isDirectory() && entry.name !== '__pycache__'
+        ? pythonInputs(path.join(directory, entry.name))
+        : entry.isFile() && entry.name.endsWith('.py') ? [path.join(directory, entry.name)] : []);
+  }
+  const pluginInputs = pythonInputs('plugins');
   const buildInputs = [...getPythonFiles(), ...pluginInputs, 'requirements.txt', 'build_entrypoints.bat',
-    'build_entrypoints.sh', 'check_and_build_entrypoints.js'];
+    'build_entrypoints.sh', 'check_and_build_entrypoints.js',
+    'scripts/export_pdf_catalog.py', 'scripts/export_game_catalog.py'];
   const hashes = buildInputs.map(file => {
     const hash = getFileHash(path.join(PROJECT_ROOT, file));
     return `${file}:${hash}`;

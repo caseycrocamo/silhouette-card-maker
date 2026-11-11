@@ -1,0 +1,10 @@
+.template-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem; margin-top:1.5rem; }
+.template-grid fieldset { border:1px solid #b8a58b; border-radius:.5rem; padding:1rem; display:grid; gap:.65rem; align-content:start; }
+.template-grid legend { font-weight:600; padding:0 .3rem; }
+.template-grid label,.template-actions { display:grid; gap:.3rem; }
+.template-grid input:not([type=radio]):not([type=checkbox]),.template-grid select { min-width:0; }
+.template-grid label:has(input[type=radio]),.template-grid label:has(input[type=checkbox]) { display:flex; gap:.5rem; align-items:center; }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+.template-actions { grid-column:1/-1; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); align-items:end; }
+#results { display:grid; gap:.5rem; margin-top:1rem; }
+.template-result { padding:.7rem; border:1px solid #b8a58b; border-radius:.4rem; overflow-wrap:anywhere; }

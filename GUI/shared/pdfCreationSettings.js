@@ -1,4 +1,5 @@
 "use strict";
+const layoutCatalog = require("./layoutCatalog");
 
 const GROUPS = {
   page: [
@@ -111,16 +112,9 @@ function validate(settings, metadata) {
   if (allowed.has("output_path") && !settings.output_path)
     errors.output_path = "Choose an output destination.";
   if (!settings.specialty && metadata.layouts?.length) {
-    const supported = metadata.layouts.some(
-      (layout) =>
-        String(layout.card_size).toLowerCase() ===
-          String(settings.card_size).toLowerCase() &&
-        String(layout.paper_size).toLowerCase() ===
-          String(settings.paper_size).toLowerCase() &&
-        (!layout.variants ||
-          layout.variants.some(
-            (v) => v.name === (settings.borderless ? "borderless" : "default"),
-          )),
+    const supported = layoutCatalog.hasLayout(
+      metadata, settings.card_size, settings.paper_size,
+      settings.borderless ? "borderless" : "default",
     );
     if (!supported)
       errors.card_size =

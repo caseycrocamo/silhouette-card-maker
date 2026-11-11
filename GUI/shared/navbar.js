@@ -129,9 +129,12 @@ class Navbar extends HTMLElement {
         const currentStep = attr === null ? 1 : parseInt(attr);
         const currentPath = window.location.pathname;
         const explicitGame = currentPath.includes('/CardList/') ? new URLSearchParams(window.location.search).get('game') : null;
+        const { games } = require(path.join(__dirname, '../shared/cardList/gameRegistry.js'));
+        const candidateGame = explicitGame || sessionStorage.getItem('activeGame');
         const activeGame = currentPath.includes('/MagicTheGathering/') ? 'mtg' :
-            (['mtg', 'pokemon'].includes(explicitGame) ? explicitGame : sessionStorage.getItem('activeGame') === 'pokemon' ? 'pokemon' : 'mtg');
-        const isSettingsActive = currentStep === 0;
+            (Object.hasOwn(games, candidateGame) ? candidateGame : 'mtg');
+        const isSettingsActive = currentPath.includes('/Settings/');
+        const isToolsActive = currentPath.includes('/Tools/');
         const settingsLinkClasses = 'absolute right-8 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all duration-200 ' +
             (isSettingsActive
                 ? 'bg-content-light text-surface opacity-100'
@@ -152,6 +155,11 @@ class Navbar extends HTMLElement {
                         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </a>
+                    <a href="../Tools/tools.html" title="Cutting templates" aria-label="Cutting templates" class="absolute right-20 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all duration-200 ${isToolsActive ? 'bg-content-light text-surface opacity-100' : 'text-content-light opacity-70 hover:opacity-100'}">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-3 3-3-3 3-3z" />
                         </svg>
                     </a>
                 </div>

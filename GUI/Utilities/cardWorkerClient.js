@@ -11,7 +11,7 @@ function resolveCardWorker({ packaged, resourcesPath = process.resourcesPath, pl
   return { command: candidates.find(file => fs.existsSync(file)) || (platform === 'win32' ? 'python' : 'python3'), args: [path.join(root, 'card_worker.py')], cwd: root };
 }
 
-function createCardWorkerClient({ launch = spawn, resolve = () => resolveCardWorker({ packaged: require('electron').app.isPackaged }), env = null, timeoutMs = 120000 } = {}) {
+function createCardWorkerClient({ launch = spawn, resolve = () => resolveCardWorker({ packaged: require('electron').app.isPackaged }), env = null, timeoutMs = 120000, importTimeoutMs = 15 * 60 * 1000 } = {}) {
   let worker = null, sequence = 0, reader = null;
   const pending = new Map();
   function fail(error, child = worker) {
@@ -47,7 +47,8 @@ function createCardWorkerClient({ launch = spawn, resolve = () => resolveCardWor
       let child;
       try { child = start(); } catch(error) { reject(error); return; }
       const id = ++sequence;
-      const timer = setTimeout(() => fail(new Error('Card request timed out.'), child), timeoutMs);
+      const deadline = payload.op === 'import' ? importTimeoutMs : timeoutMs;
+      const timer = setTimeout(() => fail(new Error('Card request timed out.'), child), deadline);
       pending.set(id, { resolve: resolveTask, reject, timer });
       child.stdin.write(JSON.stringify({ ...payload, version: 1, id }) + '\n', error => { if (error) fail(error, child); });
     });

@@ -47,6 +47,36 @@ function getCalibrationDir() {
         : CALIBRATION_DIR;
 }
 
+// App-created definitions and templates stay outside bundled resources.
+function getCustomLayoutsPath() {
+    return path.join(getDataDir(), 'custom-layouts.json');
+}
+function getLayoutOverridesPath() {
+    return path.join(getDataDir(), 'layout-overrides.json');
+}
+function getCuttingTemplatesDir() {
+    return path.join(getDataDir(), 'cutting-templates');
+}
+function getGeneratedCalibrationDir() {
+    return path.join(getDataDir(), 'calibration');
+}
+function getLayoutEnvironment() {
+    const extras = (process.env.SCM_EXTRA_LAYOUTS || '').split(path.delimiter).filter(Boolean);
+    const custom = getCustomLayoutsPath();
+    const fs = require('fs');
+    fs.mkdirSync(path.dirname(custom), { recursive: true });
+    for (const definition of [custom, getLayoutOverridesPath()]) {
+        try { fs.writeFileSync(definition, '{}\n', { flag: 'wx' }); }
+        catch (error) { if (error.code !== 'EEXIST') throw error; }
+    }
+    if (!extras.includes(custom)) extras.push(custom);
+    return {
+        SCM_EXTRA_LAYOUTS: extras.join(path.delimiter),
+        SCM_LAYOUT_OVERRIDES: getLayoutOverridesPath(),
+        SCM_CUTTING_TEMPLATES_DIR: getCuttingTemplatesDir(),
+    };
+}
+
 module.exports = {
     getFrontDir,
     getBackDir,
@@ -55,4 +85,9 @@ module.exports = {
     getDoubleSidedDir,
     getDataDir,
     getCalibrationDir,
+    getCustomLayoutsPath,
+    getLayoutOverridesPath,
+    getCuttingTemplatesDir,
+    getGeneratedCalibrationDir,
+    getLayoutEnvironment,
 };

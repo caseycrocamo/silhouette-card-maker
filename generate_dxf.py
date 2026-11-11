@@ -21,6 +21,7 @@ Usage:
 """
 
 import json
+import os
 from pathlib import Path
 
 import click
@@ -281,7 +282,8 @@ def single(output_file, paper_size, card_size, card_height, card_width, card_rad
         # file when more than one extra layout file is in use. Falls back to the last extra
         # file, then this repo's own layouts.json, so opt-in extra sizes stay out of it.
         extra_paths = extra_layout_paths()
-        save_path = (
+        forced_save_path = os.environ.get("SCM_CUSTOM_LAYOUT_PATH")
+        save_path = Path(forced_save_path) if forced_save_path else (
             find_extra_layout_owner('card_sizes', card_label)
             or find_extra_layout_owner('paper_sizes', paper_label)
             or (extra_paths[-1] if extra_paths else LAYOUTS_PATH)
@@ -342,13 +344,19 @@ def single(output_file, paper_size, card_size, card_height, card_width, card_rad
 
         if changed:
             save_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(save_path, 'w') as f:
+            temp_path = save_path.with_suffix(save_path.suffix + ".tmp")
+            with open(temp_path, 'w') as f:
                 json.dump(raw_config, f, indent=4)
                 f.write('\n')
+            temp_path.replace(save_path)
         else:
             print("  No new entries to save.")
 
     print("Done!")
+    return {"path": str(output_path), "rows": num_rows, "cols": num_cols,
+            "capacity": num_cards, "max_length_mm": computed.max_length_mm,
+            "orientation": resolved_orientation.value, "version": version,
+            "card_size": card_label, "paper_size": paper_label}
 
 
 @cli.command()

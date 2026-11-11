@@ -428,9 +428,6 @@ function imageCard(path, f) {
     el("hoverPreview")?.remove();
   });
   d.append(i);
-  const s = document.createElement("div");
-  s.textContent = f;
-  d.append(s);
   return d;
 }
 async function loadSources() {

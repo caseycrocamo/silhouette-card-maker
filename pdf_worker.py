@@ -21,6 +21,8 @@ import sys
 # Importing these is where the one-time startup tax is paid. Both are unmodified
 # click.Command objects living at the repo root.
 from create_pdf import cli as create_pdf_cmd, pdf_capabilities
+import click
+from utilities import get_all_card_size_names, get_all_paper_size_names, get_all_specialty_layout_names
 from offset_pdf import offset_pdf as offset_pdf_cmd
 from utilities import load_layout_config, resolve_pdf_layout, parse_crop_string, parse_dimension_string
 import os
@@ -28,6 +30,19 @@ from pathlib import Path
 import page_manager
 import size_convert
 from enums import Variant
+
+
+def refresh_creation_choices():
+    """Reload saved app layouts before Click validates a persistent-worker request."""
+    config = load_layout_config()
+    choices = {
+        "card_size": get_all_card_size_names(config),
+        "paper_size": get_all_paper_size_names(config),
+        "specialty": get_all_specialty_layout_names(config),
+    }
+    for param in create_pdf_cmd.params:
+        if param.name in choices:
+            param.type = click.Choice(choices[param.name], case_sensitive=False)
 
 
 def handle_create_pdf(req):
@@ -38,6 +53,7 @@ def handle_create_pdf(req):
     ok = True
     try:
         with contextlib.redirect_stdout(buf):
+            refresh_creation_choices()
             ctx = create_pdf_cmd.make_context("create_pdf", list(args))
             result = create_pdf_cmd.invoke(ctx)
     except Exception as e:  # includes Click's UsageError for bad args
@@ -52,6 +68,7 @@ def handle_preflight(req):
     computed = None
     argv = req.get("argv", [])
     try:
+        refresh_creation_choices()
         ctx = create_pdf_cmd.make_context("create_pdf", list(argv))
         values = ctx.params
     except Exception as e:
@@ -152,6 +169,7 @@ def handle_preflight(req):
 
 
 def handle_capabilities():
+    refresh_creation_choices()
     return {"ok": True, "log": "", "error": "", "result": pdf_capabilities()}
 
 
@@ -183,6 +201,22 @@ def handle_offset_pdf(req):
     return {"ok": ok, "log": buf.getvalue(), "error": error}
 
 
+def handle_generate_calibration(req):
+    """Generate sheets on the existing serial worker, without import side effects."""
+    log = io.StringIO()
+    try:
+        from generate_calibration import generate_calibration_sheets
+        with contextlib.redirect_stdout(log):
+            paths = generate_calibration_sheets(
+                paper_sizes=req.get("paper_sizes"),
+                output_dir=req.get("output_dir") or str(Path(os.environ.get("CARD_MAKER_DATA_DIR", "data")) / "calibration"),
+                ppi=req.get("ppi", 300),
+            )
+        return {"ok": True, "log": log.getvalue(), "error": "", "result": {"paths": paths}}
+    except Exception as error:
+        return {"ok": False, "log": log.getvalue(), "error": str(error)}
+
+
 def dispatch(req):
     command = req.get("command")
     if command == "create_pdf":
@@ -191,6 +225,8 @@ def dispatch(req):
         return handle_capabilities()
     if command == "preflight_create_pdf":
         return handle_preflight(req)
+    if command == "generate_calibration":
+        return handle_generate_calibration(req)
     if command == "offset_pdf":
         return handle_offset_pdf(req)
     return {"ok": False, "log": "", "error": f"unknown command: {command}"}

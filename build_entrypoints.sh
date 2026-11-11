@@ -40,6 +40,7 @@ python -m pip install pyinstaller --no-warn-script-location
 echo ""
 echo "Exporting GUI settings and layout previews..."
 python scripts/export_pdf_catalog.py
+python scripts/export_game_catalog.py
 
 echo "Discovering build targets..."
 TARGET_SCRIPTS=()
@@ -59,7 +60,7 @@ fi
 for script in "${TARGET_SCRIPTS[@]}"; do
     echo ""
     echo "Building ${script%.py} executable with PyInstaller..."
-    python -m PyInstaller --noconfirm --onefile --add-data "assets:assets" "$script" --distpath .
+    python -m PyInstaller --noconfirm --onefile --collect-submodules plugins --add-data "assets:assets" "$script" --distpath .
 done
 
 echo ""

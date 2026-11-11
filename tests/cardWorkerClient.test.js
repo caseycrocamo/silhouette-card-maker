@@ -45,3 +45,14 @@ test('request timeout kills stalled work and allows a fresh request', async () =
   children[1].stdout.write('{"id":2,"result":{"entries":[]}}\n');
   assert.deepEqual(await next,{entries:[]});await client.stop();
 });
+
+test('bulk imports have their own deadline for long decks', async () => {
+  const child = fake();
+  const client = createCardWorkerClient({ launch: () => child,
+    resolve: () => ({ command: 'worker', args: [] }), env: {}, timeoutMs: 1, importTimeoutMs: 1000 });
+  const request = client.request({ op: 'import', game: 'lorcana' });
+  await new Promise(resolve => setTimeout(resolve, 5));
+  child.stdout.write('{"id":1,"result":{"status":"success","entries":[]}}\n');
+  assert.equal((await request).status, 'success');
+  await client.stop();
+});

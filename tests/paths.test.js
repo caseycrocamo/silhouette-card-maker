@@ -59,3 +59,20 @@ for (const [platform, pathApi, userData, resourcesPath] of [
     assert.equal(renderer.getCalibrationDir(), main.getCalibrationDir());
   });
 }
+
+test('layout environment creates a writable overlay and preserves inherited definitions', t => {
+  const os = require('node:os');
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'card-maker-layout-paths-'));
+  t.after(() => fs.rmSync(userData, { recursive: true, force: true }));
+  const constants = loadConstants({ app: { isPackaged: true, getPath: () => userData } }, {
+    env: { SCM_EXTRA_LAYOUTS: path.join(userData, 'external.json') },
+  });
+  const result = constants.getLayoutEnvironment();
+  assert.equal(constants.getGeneratedCalibrationDir(), path.join(userData, 'data', 'calibration'));
+  assert.equal(result.SCM_CUTTING_TEMPLATES_DIR, path.join(userData, 'data', 'cutting-templates'));
+  assert.deepEqual(result.SCM_EXTRA_LAYOUTS.split(path.delimiter), [path.join(userData, 'external.json'), constants.getCustomLayoutsPath()]);
+  const saved = JSON.stringify({ card_sizes: { kept: { width: '1in', height: '2in' } } });
+  fs.writeFileSync(constants.getCustomLayoutsPath(), saved);
+  constants.getLayoutEnvironment();
+  assert.equal(fs.readFileSync(constants.getCustomLayoutsPath(), 'utf8'), saved);
+});

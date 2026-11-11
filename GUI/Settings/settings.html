@@ -56,40 +56,74 @@
         </section>
 
         <!-- Offset Calibration Section -->
-        <section class="paper-element mb-12 p-6">
-            <h2 class="text-xl font-semibold text-primary-dark mb-6">Printer Offset Calibration</h2>
+        <section class="paper-element mb-12 p-6" aria-labelledby="printerCalibrationHeading">
+            <h2 id="printerCalibrationHeading" class="text-xl font-semibold text-primary-dark mb-6">Printer calibration</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Edit Offset Data -->
                 <div class="paper-surface rounded-lg p-4">
-                    <h3 class="text-lg font-medium text-primary-dark mb-4">Edit Offset Data</h3>
+                    <h3 class="text-lg font-medium text-primary-dark mb-4">Saved printer offsets</h3>
                     <div class="space-y-4">
-                        <p class="text-sm text-content">Offsets are relative to the back page orientation. Positive X moves right; positive Y moves up.</p>
+                        <p class="text-sm text-content">Values use the back-page frame. Positive X moves right, positive Y moves up, and positive angle turns clockwise. Offsets use pixels at the selected PPI.</p>
                         <div>
-                            <label class="block text-content mb-1" for="editXOffset">X Offset</label>
-                            <input type="number" id="editXOffset" class="paper-input" value="0">
+                            <label class="block text-content mb-1" for="editXOffset">X offset (pixels)</label>
+                            <input type="number" step="1" id="editXOffset" class="paper-input" value="0">
                         </div>
                         <div>
-                            <label class="block text-content mb-1" for="editYOffset">Y Offset</label>
-                            <input type="number" id="editYOffset" class="paper-input" value="0">
+                            <label class="block text-content mb-1" for="editYOffset">Y offset (pixels)</label>
+                            <input type="number" step="1" id="editYOffset" class="paper-input" value="0">
                         </div>
-                        <button class="paper-button w-full" id="saveOffsetBtn">Save</button>
+                        <div>
+                            <label class="block text-content mb-1" for="editAngleOffset">Angle (degrees)</label>
+                            <input type="number" step="any" id="editAngleOffset" class="paper-input" value="0">
+                        </div>
+                        <button type="button" class="paper-button w-full" id="saveOffsetBtn">Save offsets</button>
                     </div>
                 </div>
 
-                <!-- Run Offset PDF -->
                 <div class="paper-surface rounded-lg p-4">
-                    <h3 class="text-lg font-medium text-primary-dark mb-4">Run Offset PDF</h3>
+                    <h3 class="text-lg font-medium text-primary-dark mb-4">Apply offsets to one PDF</h3>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-content mb-1" for="offsetPdfPath">PDF Path</label>
+                            <label class="block text-content mb-1" for="offsetPdfPath">Input PDF</label>
                             <div class="flex gap-2">
                                 <input type="text" id="offsetPdfPath" class="paper-input flex-1" placeholder="game/output/game.pdf" readonly>
-                                <button type="button" class="paper-button" id="browsePdfBtn">Browse</button>
+                                <button type="button" class="paper-button paper-button--compact" id="browsePdfBtn">Browse</button>
                             </div>
                         </div>
-                        <button class="paper-button w-full" id="runOffsetPdfBtn">Run Offset PDF</button>
+                        <div>
+                            <label class="block text-content mb-1" for="offsetOutputPath">Output PDF</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="offsetOutputPath" class="paper-input flex-1" readonly>
+                                <button type="button" class="paper-button paper-button--compact" id="browseOffsetOutputBtn">Choose</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-content mb-1" for="runPpi">PPI</label>
+                            <input type="number" id="runPpi" min="1" step="1" required value="300" class="paper-input">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <label class="block text-sm" for="runXOffset">X override (pixels)<input type="number" step="1" id="runXOffset" class="paper-input mt-1"></label>
+                            <label class="block text-sm" for="runYOffset">Y override (pixels)<input type="number" step="1" id="runYOffset" class="paper-input mt-1"></label>
+                            <label class="block text-sm" for="runAngleOffset">Angle override (degrees)<input type="number" step="any" id="runAngleOffset" class="paper-input mt-1"></label>
+                        </div>
+                        <p class="text-sm text-content-light">Leave an override blank to use the saved value. Applying a PDF does not change saved offsets.</p>
+                        <button type="button" class="paper-button w-full" id="runOffsetPdfBtn">Apply offsets</button>
                     </div>
                 </div>
+            </div>
+            <div class="paper-surface rounded-lg p-4 mt-6 space-y-4">
+                <h3 class="text-lg font-medium text-primary-dark">Generate calibration sheets</h3>
+                <p class="text-sm text-content-light">Select one or more paper sizes from the active layout configuration.</p>
+                <label class="flex items-center gap-2"><input type="checkbox" id="selectAllCalibrationPapers" class="h-5 w-5"><span>All paper sizes</span></label>
+                <div id="calibrationPaperSizes" class="grid grid-cols-2 md:grid-cols-4 gap-3" aria-live="polite">Loading paper sizes…</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="block" for="calibrationPpi">PPI<input type="number" id="calibrationPpi" min="1" step="1" required value="300" class="paper-input mt-1"></label>
+                    <div>
+                        <label class="block mb-1" for="calibrationOutputDir">Output folder</label>
+                        <div class="flex gap-2"><input type="text" id="calibrationOutputDir" class="paper-input flex-1" readonly><button type="button" id="browseCalibrationDirBtn" class="paper-button paper-button--compact">Choose</button></div>
+                    </div>
+                </div>
+                <button type="button" id="generateCalibrationBtn" class="paper-button">Generate selected sheets</button>
+                <p id="calibrationStatus" class="text-sm text-content-light" role="status" aria-live="polite"></p>
             </div>
         </section>
 </body>

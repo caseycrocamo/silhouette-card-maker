@@ -5,7 +5,7 @@ function render(url,saved){
  let Navbar;
  class Element{getAttribute(){return '2';}}
  const current=new URL(url);
- const context={HTMLElement:Element,window:{location:current},sessionStorage:{getItem:()=>saved},URLSearchParams,__dirname:path.resolve(__dirname,'../GUI/shared'),require:name=>name==='path'?path:{},customElements:{define:(_name,klass)=>{Navbar=klass;}}};
+ const context={HTMLElement:Element,window:{location:current},sessionStorage:{getItem:()=>saved},URLSearchParams,__dirname:path.resolve(__dirname,'../GUI/shared'),require:name=>name==='path'?path:name.endsWith('gameRegistry.js')?require('../GUI/shared/cardList/gameRegistry'):{},customElements:{define:(_name,klass)=>{Navbar=klass;}}};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../GUI/shared/navbar.js'),'utf8'),context);
  const nav=new Navbar();nav.updateContent();return nav.innerHTML;
 }
@@ -16,4 +16,10 @@ test('direct card-list game takes precedence over saved navigation game',()=>{
 test('translation returns to MTG while PDF retains selected game',()=>{
  assert.match(render('file:///GUI/MagicTheGathering/text_translation.html','pokemon'),/decklist.html\?game=mtg/);
  assert.match(render('file:///GUI/CreatePDF/create.html','pokemon'),/decklist.html\?game=pokemon/);
+});
+
+test('plugin navigation keeps the selected game and rejects unknown IDs',()=>{
+ assert.match(render('file:///GUI/CardList/decklist.html?game=lorcana','mtg'),/decklist.html\?game=lorcana/);
+ assert.match(render('file:///GUI/CreatePDF/create.html','riftbound'),/decklist.html\?game=riftbound/);
+ assert.match(render('file:///GUI/CardList/decklist.html?game=unknown','mtg'),/decklist.html\?game=mtg/);
 });

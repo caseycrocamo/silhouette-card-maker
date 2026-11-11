@@ -11,6 +11,7 @@ import uuid
 
 from plugins.pokemon.deck_formats import parse_limitless_result
 from plugins.pokemon.limitless import resolve_card
+from plugins.gui_imports import GameImporter, capabilities as game_capabilities
 
 
 class CardWorker:
@@ -18,6 +19,7 @@ class CardWorker:
         self.root = Path(cache_dir or tempfile.mkdtemp(prefix='card-maker-cache-')).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.cache = {}
+        self.game_importer = GameImporter(self.root)
         # Keep recent images available to restored sessions after a worker crash.
         # Sweep only our generated names; never remove unrelated cache files.
         for candidate in self.root.glob('*.png'):
@@ -47,6 +49,15 @@ class CardWorker:
             return parse_limitless_result(text)
         if op == 'release':
             return self.release(request.get('cacheIds'))
+        if op == 'capabilities':
+            return game_capabilities()
+        if op == 'import':
+            result = self.game_importer.import_game(request)
+            for entry in result.get('entries', []):
+                self.cache[('game', entry['cacheId'])] = entry
+                if entry.get('back', {}).get('cacheId'):
+                    self.cache[('game', entry['back']['cacheId'])] = entry['back']
+            return result
         if op != 'resolve':
             raise ValueError('Unknown card operation')
         entry = request.get('entry')
@@ -71,6 +82,10 @@ class CardWorker:
 
 
 def main():
+    # Electron sends UTF-8 JSON on every platform, including Windows.
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
     worker = CardWorker(os.environ.get('CARD_MAKER_CACHE_DIR'))
     print(json.dumps({'version': 1, 'ready': True}), flush=True)
     for line in sys.stdin:

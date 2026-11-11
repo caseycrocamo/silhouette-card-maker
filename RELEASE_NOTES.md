@@ -1,26 +1,36 @@
-# Silhouette Card Maker 1.2.0
+# Silhouette Card Maker 1.3.0
 
-November 8, 2026
+November 11, 2026
 
 ## New features
 
-- Select MTG printings in a side panel with an image for each printing, search, sorting, and a larger preview. Click a card image to open it.
-- Load printings in batches. The default is 25. Change Printings per load in Settings. Load more disappears at the end.
-- Reuse card images from a memory cache across previews, selection, page changes, and export. Closing all windows or quitting clears the cache.
-- Show loading spinners while card images load.
-- Import Pokémon Limitless deck lists through the shared card-list page, including supported Pocket and old-set sources.
-- Configure PDF page layout, image options, and file destinations in a preferences dialog with a page preview, search, and Save/Cancel actions.
-- Create PNG pages as well as PDFs, with custom destinations and clear completion feedback.
+- Import deck lists from 20 additional game plugin groups. These include Yu-Gi-Oh!, Lorcana, One Piece, Netrunner, Riftbound, and the Arkham Horror and Lord of the Rings LCGs. Available formats, image sources, and scenario choices depend on the game.
+- Create DXF cutting templates in Tools. Use named or custom card and paper sizes, corner radii, page orientation, and standard or borderless layouts. Generate missing templates, regenerate all templates, or optimize layouts in a batch with progress and cancellation between files.
+- Save custom sizes and optimized layouts in app data. Use the same geometry in PDF creation without changing bundled layout files or restarting the app.
+- Set printer rotation, per-run X/Y offsets, PPI, and an output PDF path. Per-run changes leave saved calibration values unchanged.
+- Generate calibration sheets for selected paper sizes or all configured sizes, including custom paper sizes.
+
+## Interface changes
+
+- Choose every game from one consistent picker, including Magic: The Gathering and Pokémon.
+- Choose the MTG task, deck format, image source, scenario, and print setup in a shared options popup. Use Options on the card-list page to change these choices.
+- Open game options from bundled metadata without waiting for Python startup. A local Electron check opened the popup in 11 ms without the card worker.
+- Keep the card-list page focused on the deck and card previews.
+- Remove filename labels below front, double-sided, and generic-back previews on the Create PDF page.
 
 ## Fixes
 
-- Keep exact collector numbers, quantities, and paired card faces when changing printings.
-- Prevent older requests from replacing a newer card choice or deck list.
-- Handle Unicode image filename headers without the Electron ByteString crash.
-- Stage image exports before replacing existing files and restore files if a commit fails.
-- Preserve separate game drafts and printing workflows.
-- Load PDF settings and the layout preview without waiting for Python startup.
+- Preserve card quantities, source order, paired faces, and separate drafts for each game and format.
+- Keep successful cards when part of an import fails. Show errors and warnings, and allow the import to be retried.
+- Keep different images and backs for cards that share a name. Pair fronts and backs even when their file extensions differ.
+- Match local Lord of the Rings back scans by card name or code.
+- Keep current choices when the options popup is canceled. Keep existing card previews when only the print setup changes.
+- Include all game plugin modules in packaged workers and use UTF-8 for worker requests on Windows.
+- Keep template batches inside the update job lock so an update cannot interrupt a batch between files.
+- Store default offset output in a writable folder and preserve drafts saved by earlier versions.
 
-## Release checks
+## Validation
 
-Node tests and local Electron fixture checks cover the new printing flow, cache, settings, and shared card-list behavior. Native Windows/Linux packaging, physical print quality, and packaged upgrade checks remain release checks. These notes describe the source release; platform installers are built separately.
+Local checks cover JavaScript behavior, Python catalog and worker parity, game imports with fixtures, options, printing selection, PDF settings, calibration sheet rendering, and the custom-template-to-PDF workflow. Native macOS arm64 workers and the app bundle were built and opened.
+
+Windows/Linux release packaging, live card-provider checks, physical print alignment, and packaged upgrade checks remain separate release checks. These notes describe the source release; installers are built separately.

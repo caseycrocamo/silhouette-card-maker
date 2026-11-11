@@ -1,0 +1,20 @@
+.game-options-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  margin: auto;
+  padding: 28px;
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  background: var(--app-surface);
+  color: var(--app-content);
+  box-shadow: 0 28px 100px #0008;
+  overflow-y: auto;
+}
+.game-options-dialog::backdrop { background: #0009; backdrop-filter: blur(3px); }
+.game-options-dialog [hidden] { display: none !important; }
+.game-options-fields { display: grid; gap: 20px; }
+.game-options-dialog > .game-options-fields { margin-top: 24px; }
+.game-options-field { display: grid; gap: 8px; min-width: 0; }
+.game-options-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.game-options-dialog :focus-visible:not(.paper-button) { outline: 2px solid var(--app-content-light); outline-offset: 3px; }
+@media (max-width: 480px) { .game-options-dialog { padding: 20px; } }

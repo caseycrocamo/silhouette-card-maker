@@ -3,6 +3,7 @@ const path = require('path');
 require('./Utilities/ipcHandlers');
 require('./Utilities/cardImageCache').registerCardImageCache();
 const { startPdfWorker, stopPdfWorker, stopPdfWorkerForUpdate } = require('./Utilities/pdfWorkerClient');
+const { stopTemplateWorker } = require('./Utilities/templateWorkerClient');
 const { stopCardWorker } = require('./Utilities/cardWorkerClient');
 const { createUpdateService } = require('./Utilities/updateService');
 const { registerUpdateIpc } = require('./Utilities/updateIpc');
@@ -27,6 +28,7 @@ async function prepareInstall() {
   if (response !== 1) throw new Error('Restart cancelled. The downloaded update remains available.');
   await stopPdfWorkerForUpdate();
   await stopCardWorker();
+  await stopTemplateWorker();
 }
 
 function createWindow() {
@@ -65,14 +67,16 @@ app.whenReady().then(() => {
 app.on('before-quit', () => {
   if (updateService) updateService.stop();
   if (removeUpdateIpc) removeUpdateIpc();
+  stopTemplateWorker();
   stopCardWorker();
   stopPdfWorker();
 });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    stopTemplateWorker();
     stopCardWorker();
-  stopPdfWorker();
+    stopPdfWorker();
     app.quit();
   }
 });

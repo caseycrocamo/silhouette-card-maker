@@ -1,6 +1,7 @@
 (() => {
 const { ipcRenderer } = require('electron');
 const path = require('path');
+const { getOutputDir } = require('../shared/constants');
 const updateControls = require(path.join(__dirname, '../shared/updateControls.js'));
 const { readPageSize, savePageSize } = require(path.join(__dirname, '../shared/printingPreferences.js'));
 
@@ -68,11 +69,55 @@ function renderUpdateState(state) {
     if (state.status === 'error') addButton('Open release page', updateControls.openRelease);
 }
 
-function loadOffsetData() {
-    ipcRenderer.invoke('read-offset-data').then(data => {
-        document.getElementById('editXOffset').value = data.x_offset;
-        document.getElementById('editYOffset').value = data.y_offset;
-    });
+let savedOffsets = { x_offset: 0, y_offset: 0, angle_offset: 0 };
+let calibrationPapers = [];
+
+async function loadOffsetData() {
+    try {
+        const data = await ipcRenderer.invoke('read-offset-data');
+        savedOffsets = {
+            x_offset: Number(data?.x_offset ?? 0),
+            y_offset: Number(data?.y_offset ?? 0),
+            angle_offset: Number(data?.angle_offset ?? 0)
+        };
+        document.getElementById('editXOffset').value = savedOffsets.x_offset;
+        document.getElementById('editYOffset').value = savedOffsets.y_offset;
+        document.getElementById('editAngleOffset').value = savedOffsets.angle_offset;
+    } catch (error) {
+        console.error('Could not load printer offsets', error);
+    }
+}
+
+function validPpi(value) {
+    const ppi = Number(value);
+    if (!Number.isInteger(ppi) || ppi <= 0) throw new Error('PPI must be a positive whole number.');
+    return ppi;
+}
+
+function renderCalibrationPapers(papers) {
+    calibrationPapers = Array.isArray(papers) ? papers : [];
+    const container = document.getElementById('calibrationPaperSizes');
+    container.replaceChildren();
+    if (!calibrationPapers.length) {
+        container.textContent = 'No configured paper sizes are available.';
+        return;
+    }
+    for (const paper of calibrationPapers) {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'calibrationPaperSize';
+        checkbox.value = paper.name;
+        checkbox.className = 'h-5 w-5';
+        label.append(checkbox, document.createTextNode(`${paper.name} (${paper.width} × ${paper.height})`));
+        container.appendChild(label);
+    }
+    document.getElementById('selectAllCalibrationPapers').checked = false;
+}
+
+function selectedCalibrationPapers() {
+    return Array.from(document.querySelectorAll('input[name="calibrationPaperSize"]:checked'), input => input.value);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -120,15 +165,35 @@ window.addEventListener('DOMContentLoaded', () => {
 
     loadOffsetData();
 
+    ipcRenderer.invoke('get-calibration-capabilities').then(metadata => {
+        renderCalibrationPapers(metadata?.paper_sizes);
+    }).catch(error => {
+        console.error('Could not load configured paper sizes', error);
+        document.getElementById('calibrationPaperSizes').textContent = error.message || 'Could not load paper sizes.';
+    });
+    document.getElementById('selectAllCalibrationPapers').addEventListener('change', event => {
+        document.querySelectorAll('input[name="calibrationPaperSize"]').forEach(input => { input.checked = event.currentTarget.checked; });
+    });
+    document.getElementById('calibrationPaperSizes').addEventListener('change', () => {
+        const checkboxes = Array.from(document.querySelectorAll('input[name="calibrationPaperSize"]'));
+        document.getElementById('selectAllCalibrationPapers').checked = checkboxes.length > 0 && checkboxes.every(input => input.checked);
+    });
+
     ipcRenderer.invoke('get-default-calibration-pdf').then(defaultPath => {
         document.getElementById('offsetPdfPath').value = defaultPath;
+        document.getElementById('offsetOutputPath').value = path.join(getOutputDir(), `${path.parse(defaultPath).name}_offset.pdf`);
     });
 
     document.getElementById('saveOffsetBtn').onclick = async function() {
-        const x_offset = document.getElementById('editXOffset').value;
-        const y_offset = document.getElementById('editYOffset').value;
+        const x_offset = Number(document.getElementById('editXOffset').value);
+        const y_offset = Number(document.getElementById('editYOffset').value);
+        const angle_offset = Number(document.getElementById('editAngleOffset').value);
+        if (![x_offset, y_offset, angle_offset].every(Number.isFinite) || !Number.isInteger(x_offset) || !Number.isInteger(y_offset)) {
+            alert('X and Y offsets must be whole pixels. The angle must be a valid number.');
+            return;
+        }
         try {
-            await ipcRenderer.invoke('save-offset-data', { x_offset, y_offset });
+            savedOffsets = await ipcRenderer.invoke('save-offset-data', { x_offset, y_offset, angle_offset });
             alert('Offset data saved.');
             loadOffsetData();
         } catch (err) {
@@ -140,11 +205,76 @@ window.addEventListener('DOMContentLoaded', () => {
         const filePath = await ipcRenderer.invoke('select-pdf-file');
         if (filePath) {
             document.getElementById('offsetPdfPath').value = filePath;
+            const parsed = path.parse(filePath);
+            document.getElementById('offsetOutputPath').value = path.join(getOutputDir(), `${parsed.name}_offset.pdf`);
         }
+    };
+
+    document.getElementById('browseOffsetOutputBtn').onclick = async function() {
+        const filePath = await ipcRenderer.invoke('select-pdf-setting-path', {
+            kind: 'pdf', defaultPath: document.getElementById('offsetOutputPath').value || undefined
+        });
+        if (filePath) document.getElementById('offsetOutputPath').value = filePath.path || filePath;
+    };
+
+    document.getElementById('browseCalibrationDirBtn').onclick = async function() {
+        const outputDir = await ipcRenderer.invoke('select-pdf-setting-path', {
+            kind: 'directory', defaultPath: document.getElementById('calibrationOutputDir').value || undefined
+        });
+        if (outputDir) document.getElementById('calibrationOutputDir').value = outputDir.path || outputDir;
+    };
+
+    document.getElementById('generateCalibrationBtn').onclick = async function() {
+        const paperSizes = selectedCalibrationPapers();
+        if (!paperSizes.length) { alert('Select at least one paper size.'); return; }
+        let ppi;
+        try { ppi = validPpi(document.getElementById('calibrationPpi').value); }
+        catch (error) { alert(error.message); return; }
+        const button = this;
+        button.disabled = true;
+        const status = document.getElementById('calibrationStatus');
+        status.textContent = 'Generating calibration sheets…';
+        try {
+            const result = await ipcRenderer.invoke('generate-calibration-sheets', {
+                paperSizes,
+                outputDir: document.getElementById('calibrationOutputDir').value || undefined,
+                ppi
+            });
+            const paths = result?.paths || [];
+            status.textContent = `Created ${paths.length} calibration sheet${paths.length === 1 ? '' : 's'}.`;
+            if (paths.length === 1) location.href = '../Utilities/pdf_viewer.html?path=' + encodeURIComponent(paths[0]);
+            else if (paths.length) status.textContent += ` ${paths.join(', ')}`;
+        } catch (error) {
+            status.textContent = error.message || String(error);
+        } finally { button.disabled = false; }
     };
 
     document.getElementById('runOffsetPdfBtn').onclick = async function() {
         const pdfPath = document.getElementById('offsetPdfPath').value.trim();
+        let outputPdfPath = document.getElementById('offsetOutputPath').value.trim();
+        if (!pdfPath) { alert('Choose an input PDF.'); return; }
+        if (!outputPdfPath) {
+            const parsed = path.parse(pdfPath);
+            outputPdfPath = path.join(getOutputDir(), `${parsed.name}_offset.pdf`);
+            document.getElementById('offsetOutputPath').value = outputPdfPath;
+        }
+        let ppi;
+        try { ppi = validPpi(document.getElementById('runPpi').value); }
+        catch (error) { alert(error.message); return; }
+        const readOverride = id => {
+            const raw = document.getElementById(id).value;
+            if (raw.trim() === '') return undefined;
+            const value = Number(raw);
+            if (!Number.isFinite(value)) throw new Error('Offset overrides must be valid numbers.');
+            if ((id === 'runXOffset' || id === 'runYOffset') && !Number.isInteger(value)) throw new Error('X and Y overrides must be whole pixels.');
+            return value;
+        };
+        let xOffset, yOffset, angle;
+        try {
+            xOffset = readOverride('runXOffset');
+            yOffset = readOverride('runYOffset');
+            angle = readOverride('runAngleOffset');
+        } catch (error) { alert(error.message); return; }
 
         window.showLoadingOverlay({
             title: 'Running Offset PDF',
@@ -152,7 +282,9 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
         try {
-            const stdout = await ipcRenderer.invoke('run-offset-pdf', { pdfPath });
+            const stdout = await ipcRenderer.invoke('run-offset-pdf', {
+                pdfPath, outputPdfPath, xOffset, yOffset, angle, ppi, save: false
+            });
             window.hideLoadingOverlay();
             const match = stdout.match(/Offset PDF: (.+)/);
             if (match) {

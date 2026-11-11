@@ -225,3 +225,27 @@ test("commit failure rolls back new files and restores replaced images", async (
   );
   assert.deepEqual(fs.readdirSync(d.root).sort(), ["double", "front"]);
 });
+
+test('imported cards with the same name keep distinct art and paired backs', async () => {
+  const cards = ['first', 'second'].map(id => ({
+    id, name: 'Shared name', qty: 1,
+    printing: { id, faces: [{ url: `file:///${id}.png` }], back: { url: `file:///${id}-back.png` } },
+  }));
+  const controller = createController({ adapter: {
+    parse: () => ({ entries: cards, errors: [] }), resolve: item => item.printing,
+    serialize: () => 'original source',
+  } });
+  await controller.search('original source');
+  assert.equal(controller.state.entries[0].printing.id, 'first');
+  assert.equal(controller.state.entries[1].printing.id, 'second');
+  assert.equal(controller.state.entries[1].printing.back.url, 'file:///second-back.png');
+});
+
+test('game-scoped drafts migrate when format-scoped storage is introduced', () => {
+  const data = new Map([['card-list:v1:pokemon', JSON.stringify({ draft: '2 Pikachu SVI 047', workflow: 'front_only' })]]);
+  const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+  const store = createStore(storage, 'pokemon');
+  assert.equal(store.load().draft, '2 Pikachu SVI 047');
+  store.save('', 'front_only');
+  assert.equal(store.load().draft, '');
+});

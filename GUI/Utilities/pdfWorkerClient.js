@@ -7,7 +7,8 @@ const {
   getBackDir,
   getOutputDir,
   getDoubleSidedDir,
-  getDataDir
+  getDataDir,
+  getLayoutEnvironment
 } = require('../shared/constants');
 
 // --- Module state ---------------------------------------------------------
@@ -79,7 +80,8 @@ function startPdfWorker() {
         CARD_MAKER_BACK_DIR: getBackDir(),
         CARD_MAKER_OUTPUT_DIR: getOutputDir(),
         CARD_MAKER_DOUBLE_SIDED_DIR: getDoubleSidedDir(),
-        CARD_MAKER_DATA_DIR: getDataDir()
+        CARD_MAKER_DATA_DIR: getDataDir(),
+        ...(typeof getLayoutEnvironment === 'function' ? getLayoutEnvironment() : {})
       }
     });
   } catch (err) {
@@ -313,10 +315,13 @@ async function preflightCreatePdf(argv) {
   return sendRequest({ command: 'preflight_create_pdf', argv: Array.isArray(argv) ? argv : [] });
 }
 
-async function runOffsetPdf({ pdfPath, xOffset, yOffset, angle, save } = {}) {
+async function runOffsetPdf({ pdfPath, outputPdfPath, xOffset, yOffset, angle, ppi, save } = {}) {
   const req = { command: 'offset_pdf' };
   if (pdfPath !== undefined && pdfPath !== null && pdfPath !== '') {
     req.pdf_path = pdfPath;
+  }
+  if (outputPdfPath !== undefined && outputPdfPath !== null && outputPdfPath !== '') {
+    req.output_pdf_path = outputPdfPath;
   }
   if (xOffset !== undefined && xOffset !== null && xOffset !== '') {
     req.x_offset = Number(xOffset);
@@ -327,7 +332,18 @@ async function runOffsetPdf({ pdfPath, xOffset, yOffset, angle, save } = {}) {
   if (angle !== undefined && angle !== null && angle !== '') {
     req.angle = Number(angle);
   }
+  if (ppi !== undefined && ppi !== null && ppi !== '') {
+    req.ppi = Number(ppi);
+  }
   req.save = Boolean(save);
+  return sendRequest(req);
+}
+
+async function generateCalibrationSheets({ paperSizes, outputDir, ppi } = {}) {
+  const req = { command: 'generate_calibration' };
+  if (Array.isArray(paperSizes) && paperSizes.length) req.paper_sizes = paperSizes;
+  if (outputDir) req.output_dir = outputDir;
+  if (ppi !== undefined && ppi !== null && ppi !== '') req.ppi = Number(ppi);
   return sendRequest(req);
 }
 
@@ -338,5 +354,6 @@ module.exports = {
   runCreatePdf,
   getPdfCapabilities,
   preflightCreatePdf,
-  runOffsetPdf
+  runOffsetPdf,
+  generateCalibrationSheets
 };

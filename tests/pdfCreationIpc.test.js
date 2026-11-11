@@ -7,6 +7,7 @@ const vm = require("node:vm");
 function loadIpc() {
   const handlers = new Map();
   const requests = [];
+  const activityCalls = [];
   const dialogCalls = [];
   const dialogState = {
     canceled: false,
@@ -73,7 +74,9 @@ function loadIpc() {
         }
       },
       readFile: async () => "{}",
-      writeFile: async () => {},
+      writeFile: async (file, contents) => requests.push(["write", file, contents]),
+      rename: async (src, dest) => requests.push(["rename", src, dest]),
+      rm: async () => {},
     },
   };
   const filename = path.resolve(__dirname, "../GUI/Utilities/ipcHandlers.js");
@@ -85,6 +88,7 @@ function loadIpc() {
     getDoubleSidedDir: () => "/managed/doubles",
     getDataDir: () => "/managed/data",
     getCalibrationDir: () => "/managed/calibration",
+    getGeneratedCalibrationDir: () => "/managed/generated-calibration",
   };
   const worker = {
     runCreatePdf: async (argv) => {
@@ -111,7 +115,8 @@ function loadIpc() {
         result: { errors: {}, warnings: [], slot_capacity: 9 },
       };
     },
-    runOffsetPdf: async () => ({ ok: true, log: "offset" }),
+    runOffsetPdf: async (values) => { requests.push(["offset", values]); return { ok: true, log: "offset" }; },
+    generateCalibrationSheets: async (values) => { requests.push(["calibration", values]); return { ok: true, result: { paths: ["/tmp/letter-calibration.pdf"] } }; },
   };
   const context = {
     module: { exports: {} },
@@ -124,9 +129,22 @@ function loadIpc() {
       if (name === "electron") return electron;
       if (name === "fs") return fakeFs;
       if (name === "./pdfWorkerClient") return worker;
+      if (name === "./templateWorkerClient") return {
+        requestTemplate: async payload => {
+          requests.push(['template', payload]);
+          if (payload.command === 'batch_manifest') return { ok: true, items: [
+            { card_size: 'one', output_path: '/tmp/one.dxf' },
+            { card_size: 'two', output_path: '/tmp/two.dxf' },
+          ] };
+          return { ok: true, path: payload.output_path };
+        },
+      };
       if (name === "./updateIpc") return require("../GUI/Utilities/updateIpc");
       if (name === "./jobActivity")
-        return { jobActivity: { run: (fn) => fn() } };
+        return { jobActivity: { run: async (fn) => {
+          activityCalls.push('start');
+          try { return await fn(); } finally { activityCalls.push('end'); }
+        } } };
       if (name === "../shared/constants") return constants;
       if (name === "../shared/pdfCatalog.json")
         return require("../GUI/shared/pdfCatalog.json");
@@ -134,7 +152,7 @@ function loadIpc() {
     },
   };
   vm.runInNewContext(fs.readFileSync(filename, "utf8"), context);
-  return { handlers, requests, dialogCalls, dialogState };
+  return { handlers, requests, dialogCalls, dialogState, activityCalls };
 }
 
 test("PDF IPC transports argv as an array and returns structured output", async () => {
@@ -428,4 +446,71 @@ test("card IPC validates payload and cancel preserves existing images", async ()
   const result=await handlers.get("card-export")(event,{plan:[{name:"Pikachu",front:{url:"file:///bad.png"}}]});
   assert.equal(result.canceled,true);
   assert.equal(requests.some(([op])=>op==='unlink'||op==='copy'),false);
+});
+
+function featureEvent() {
+  const frame = { url: require('node:url').pathToFileURL(path.resolve(__dirname, '../GUI/Settings/settings.html')).href };
+  return { senderFrame: frame, sender: { mainFrame: frame, isDestroyed: () => false } };
+}
+test('offset IPC preserves rotation, PPI, output path, and zero overrides', async () => {
+  const { handlers, requests } = loadIpc();
+  const result = await handlers.get('run-offset-pdf')(featureEvent(), {
+    pdfPath: '/tmp/in.pdf', outputPdfPath: '/tmp/out.pdf', angle: -0.25,
+    xOffset: 0, yOffset: -3, ppi: 150, save: false,
+  });
+  assert.equal(result, 'offset');
+  const values = requests.find(row => row[0] === 'offset')[1];
+  assert.equal(values.angle, -0.25);
+  assert.equal(values.xOffset, 0);
+  assert.equal(values.yOffset, -3);
+  assert.equal(values.ppi, 150);
+  assert.equal(values.outputPdfPath, '/tmp/out.pdf');
+  assert.equal(values.save, false);
+});
+test('offset IPC rejects invalid numeric values and untrusted pages before processing', async () => {
+  const { handlers, requests } = loadIpc();
+  for (const invalid of [{ angle: Infinity }, { ppi: 0 }, { ppi: 1.5 }, { xOffset: 0.5 }, { save: 'yes' }])
+    await assert.rejects(handlers.get('run-offset-pdf')(featureEvent(), { pdfPath: '/tmp/in.pdf', ...invalid }), /Invalid/);
+  await assert.rejects(handlers.get('run-offset-pdf')({}, { pdfPath: '/tmp/in.pdf' }), /application pages/);
+  assert.ok(!requests.some(row => row[0] === 'offset'));
+});
+test('saved offsets use atomic replacement and retain explicit zero angle', async () => {
+  const { handlers, requests } = loadIpc();
+  const result = await handlers.get('save-offset-data')(featureEvent(), { x_offset: 0, y_offset: -1, angle_offset: 0 });
+  assert.equal(result.angle_offset, 0);
+  assert.equal(result.y_offset, -1);
+  assert.ok(requests.some(row => row[0] === 'rename' && row[2].endsWith('/offset_data.json')));
+});
+test('calibration IPC uses a writable output folder and returns paths', async () => {
+  const { handlers, requests } = loadIpc();
+  const result = await handlers.get('generate-calibration-sheets')(featureEvent(), { paperSizes: ['letter'], ppi: 150 });
+  assert.equal(result.paths[0], '/tmp/letter-calibration.pdf');
+  assert.equal(requests.find(row => row[0] === 'calibration')[1].outputDir, '/managed/generated-calibration');
+  await assert.rejects(handlers.get('generate-calibration-sheets')(featureEvent(), { paperSizes: 'letter' }), /Invalid paper/);
+});
+test('template IPC blocks unsupported operations and untrusted senders', async () => {
+  const { handlers } = loadIpc();
+  await assert.rejects(handlers.get('template-request')({}, { command: 'list' }), /application pages/);
+  await assert.rejects(handlers.get('template-request')(featureEvent(), { command: 'delete' }), /Invalid template/);
+});
+
+test('a template batch holds one activity job and cancels between items', async () => {
+  const { handlers, requests, activityCalls } = loadIpc();
+  const event = featureEvent();
+  const sender = new (require('node:events'))();
+  Object.assign(sender, event.sender);
+  event.sender = sender;
+  const progress = [];
+  sender.send = (_channel, update) => {
+    progress.push(update);
+    handlers.get('cancel-template-request')(event);
+  };
+  const result = await handlers.get('template-batch')(event, { mode: 'all', output_dir: '/tmp' });
+  assert.equal(result.canceled, true);
+  assert.equal(result.completed, 1);
+  assert.equal(result.total, 2);
+  assert.equal(progress.length, 1);
+  assert.equal(requests.filter(row => row[0] === 'template' && row[1].command === 'single').length, 1);
+  assert.deepEqual(activityCalls, ['start', 'end']);
+  assert.equal(sender.listenerCount('did-start-navigation'), 0);
 });
