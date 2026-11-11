@@ -8,3 +8,9 @@
 .template-actions { grid-column:1/-1; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); align-items:end; }
 #results { display:grid; gap:.5rem; margin-top:1rem; }
 .template-result { padding:.7rem; border:1px solid #b8a58b; border-radius:.4rem; overflow-wrap:anywhere; }
+
+.studio-fields,.studio-results { display:grid; gap:.65rem; }
+#studioPrompt { display:grid; gap:.75rem; }
+#studioPrompt[hidden],[data-studio-single][hidden],[data-studio-batch][hidden],[data-studio-convert][hidden] { display:none; }
+.studio-prompt-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+.studio-results { margin-top:1rem; overflow-wrap:anywhere; }

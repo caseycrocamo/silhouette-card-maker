@@ -133,3 +133,67 @@ def test_pocket_and_old_set_sources(monkeypatch):
     result = limitless.resolve_card('Card', 'BS', '001')
     assert result['source'] == 'pokemontcg'
     assert cdn.call_args.args[0].endswith('/base1/1_hires.png')
+
+
+def test_mtg_release_invalidates_cached_row_and_refetches(tmp_path, monkeypatch):
+    from plugins.gui_adapters.mtg import MtgImporter
+    worker = CardWorker(tmp_path)
+    calls = []
+    def resolve(importer, row, options):
+        calls.append(row['id'])
+        front = importer.image(png(), row['name'])
+        back = importer.image(png(), row['name'] + ' back')
+        token = importer.image(png(), 'Token')
+        return ([{'id': row['id'], 'faces': [front, back]}],
+                [{'id': 'shared-token', 'name': 'Token', 'faces': [token]}])
+    monkeypatch.setattr(MtgImporter, 'resolve', resolve)
+    payload = {'version': 1, 'op': 'import', 'game': 'mtg', 'format': 'mtgo',
+               'input': {'kind': 'text', 'value': '2 Maker\n1 Other'}}
+    first = worker.handle(payload)
+    ids = {value['cacheId'] for value in worker.cache.values()}
+    assert len(ids) == 6  # Both parent pairs and both cached token images are owned.
+    assert len(first['entries']) == 3  # Repeated token identity produces one displayed row.
+    released = first['entries'][0]['printing']['faces'][0]['cacheId']
+    worker.release([released])
+    second = worker.handle(payload)
+    assert calls == ['row-1', 'row-2', 'row-1']
+    assert second['entries'][0]['printing']['faces'][0]['cacheId'] != released
+    assert not (tmp_path / (released + '.png')).exists()
+    worker.release([value['cacheId'] for value in worker.cache.values()])
+    assert not list(tmp_path.glob('*.png'))
+
+
+def test_mtg_worker_eof_removes_all_cached_faces(tmp_path):
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import threading
+    image = png()
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(image)
+        def log_message(self, *_args):
+            pass
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f'http://127.0.0.1:{server.server_port}/image.png'
+        payload = {'version': 1, 'id': 1, 'op': 'import', 'game': 'mtg', 'format': 'cubecobra_csv',
+                   'input': {'kind': 'text', 'value': f'name,image URL,image Back URL\nCustom,{url},{url}'}}
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / 'card_worker.py')],
+                                input=json.dumps(payload) + '\n', text=True, capture_output=True,
+                                env=dict(os.environ, CARD_MAKER_CACHE_DIR=str(tmp_path)), timeout=30)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+    assert result.returncode == 0, result.stderr
+    response = json.loads(result.stdout.splitlines()[1])
+    assert response['result']['status'] == 'success'
+    assert len(response['result']['entries'][0]['printing']['faces']) == 2
+    assert not list(tmp_path.glob('*.png'))

@@ -17,8 +17,14 @@ function createController({
     onDraft(text);
     notify();
   }
+  function stale() {
+    generation++;
+    state.status = state.draft.trim() ? "dirty" : "empty";
+    notify();
+  }
   async function search(text = state.draft, retry = false) {
     const previousErrors = state.errors;
+    const previousEntries = new Map(state.entries.filter(e => e.status === "ready").map(e => [e.id, e]));
     const token = ++generation;
     state.draft = text;
     state.status = "loading";
@@ -31,7 +37,8 @@ function createController({
       if (token !== generation) return;
       state.entries = parsed.entries.map((e) => ({
         ...e,
-        status: e.printing && retry ? "ready" : "loading",
+        ...(retry && adapter.preserveResolvedOnRetry && previousEntries.has(e.id) ? {printing: previousEntries.get(e.id).printing} : {}),
+        status: (e.printing || (adapter.preserveResolvedOnRetry && previousEntries.has(e.id))) && retry ? "ready" : "loading",
       }));
       state.errors = parsed.errors || [];
       state.warnings = parsed.warnings || [];
@@ -138,6 +145,7 @@ function createController({
   return {
     state,
     dirty,
+    stale,
     search,
     changePrinting,
     applyPrinting,

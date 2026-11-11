@@ -36,6 +36,8 @@ class CardWorker:
         for cache_id in ids:
             (self.root / f'{cache_id}.png').unlink(missing_ok=True)
         self.cache = {k: v for k, v in self.cache.items() if v['cacheId'] not in ids}
+        if hasattr(self, 'mtg_importer'):
+            self.mtg_importer.invalidate(ids)
         return {'released': len(ids)}
 
     def handle(self, request):
@@ -50,8 +52,20 @@ class CardWorker:
         if op == 'release':
             return self.release(request.get('cacheIds'))
         if op == 'capabilities':
-            return game_capabilities()
+            from plugins.gui_adapters.mtg import descriptor
+            result = game_capabilities()
+            result['games'].append(descriptor())
+            return result
         if op == 'import':
+            if request.get('game') == 'mtg':
+                from plugins.gui_adapters.mtg import MtgImporter
+                if not hasattr(self, 'mtg_importer'):
+                    self.mtg_importer = MtgImporter(self.root)
+                result = self.mtg_importer.import_game(request)
+                # Include token faces cached before duplicate token rows are combined.
+                for face in self.mtg_importer.cached_faces():
+                    self.cache[('mtg', face['cacheId'])] = face
+                return result
             result = self.game_importer.import_game(request)
             for entry in result.get('entries', []):
                 self.cache[('game', entry['cacheId'])] = entry

@@ -181,6 +181,10 @@ class GameImporter:
             callback_errors=[record for record in records if record['error']]
             parse_errors=[line for line in logged_errors if not any(record['error'] in line for record in callback_errors)]
             parse_errors.extend(f"{record['name'] or 'Card'}: {record['error']}" for record in callback_errors)
+            parse_errors.extend(
+                f"{record['name'] or 'Card'}: No printable image was created"
+                for record in records if not record['front_files'] and not record['error']
+            )
             log_names=_log_metadata(output)
             local_backs={}
             local_dir=options.get('localBackDir') if game=='lotr_lcg' else None

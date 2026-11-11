@@ -8,6 +8,14 @@ import pytest
 from PIL import Image
 
 
+@pytest.fixture
+def worker_binary():
+    binary = Path(os.environ.get('CARD_MAKER_PDF_WORKER', '/app/pdf_worker'))
+    if not binary.is_file():
+        pytest.skip('Set CARD_MAKER_PDF_WORKER or run in the native integration container.')
+    return str(binary)
+
+
 @pytest.mark.parametrize('args', [
     ['--card_size', 'does-not-exist'],
     ['--paper_size', 'does-not-exist'],
@@ -19,7 +27,7 @@ from PIL import Image
     ['--registration', 'invalid'],
     ['--unknown-option'],
 ])
-def test_invalid_options_then_successful_request(tmp_path, args):
+def test_invalid_options_then_successful_request(tmp_path, args, worker_binary):
     env = dict(os.environ)
     for name in ['front', 'back', 'double_sided', 'output', 'data']:
         directory = tmp_path / name
@@ -30,7 +38,7 @@ def test_invalid_options_then_successful_request(tmp_path, args):
         {'command': 'create_pdf', 'args': args},
         {'command': 'create_pdf', 'args': ['--only_fronts', '--ppi', '72']},
     ]
-    result = subprocess.run([str(Path('/app/pdf_worker'))], input=''.join(json.dumps(r) + '\n' for r in requests), env=env, cwd=tmp_path, text=True, capture_output=True, timeout=60)
+    result = subprocess.run([worker_binary], input=''.join(json.dumps(r) + '\n' for r in requests), env=env, cwd=tmp_path, text=True, capture_output=True, timeout=180)
     assert result.returncode == 0, result.stderr
     ready, invalid, recovered = map(json.loads, result.stdout.splitlines())
     assert ready == {'ready': True}
@@ -39,8 +47,8 @@ def test_invalid_options_then_successful_request(tmp_path, args):
     assert (tmp_path / 'output' / 'game.pdf').read_bytes().startswith(b'%PDF')
 
 
-def test_malformed_protocol_then_recovery(tmp_path):
-    result = subprocess.run(['/app/pdf_worker'], input='not json\n' + json.dumps({'command': 'unknown'}) + '\n', cwd=tmp_path, text=True, capture_output=True, timeout=60)
+def test_malformed_protocol_then_recovery(tmp_path, worker_binary):
+    result = subprocess.run([worker_binary], input='not json\n' + json.dumps({'command': 'unknown'}) + '\n', cwd=tmp_path, text=True, capture_output=True, timeout=180)
     assert result.returncode == 0, result.stderr
     replies = [json.loads(line) for line in result.stdout.splitlines()]
     assert replies[0] == {'ready': True}
@@ -49,7 +57,7 @@ def test_malformed_protocol_then_recovery(tmp_path):
 
 
 @pytest.mark.parametrize('scenario', ['empty', 'corrupt', 'missing-directory'])
-def test_bad_front_inputs_report_errors_without_pdf(tmp_path, scenario):
+def test_bad_front_inputs_report_errors_without_pdf(tmp_path, scenario, worker_binary):
     env = dict(os.environ)
     for name in ['front', 'back', 'double_sided', 'output', 'data']:
         directory = tmp_path / name
@@ -60,7 +68,7 @@ def test_bad_front_inputs_report_errors_without_pdf(tmp_path, scenario):
     elif scenario == 'missing-directory':
         (tmp_path / 'front').rmdir()
     request = {'command': 'create_pdf', 'args': ['--only_fronts', '--ppi', '72']}
-    result = subprocess.run(['/app/pdf_worker'], input=json.dumps(request) + '\n', env=env, cwd=tmp_path, text=True, capture_output=True, timeout=60)
+    result = subprocess.run([worker_binary], input=json.dumps(request) + '\n', env=env, cwd=tmp_path, text=True, capture_output=True, timeout=180)
     assert result.returncode == 0, result.stderr
     ready, response = map(json.loads, result.stdout.splitlines())
     assert ready == {'ready': True}

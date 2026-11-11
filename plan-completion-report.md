@@ -2,34 +2,40 @@
 
 ## 1. Blind Spots Analysis
 
-- Pokémon and MTG share the editor, controller, state, result grid, and export transaction. Provider rules stay in adapters and the Pokémon plugin.
-- Review fixes preserve parse errors during retry, reject stale searches and printing changes, retain exact quantities, restore files after commit failure, and resolve navigation from the explicit game before saved state.
-- Card jobs participate in update draining. Export accepts validated local cache files or allowed Scryfall HTTPS images, decodes images before commit, and does not change common backs.
-- All coding agents used the shared worktree. Existing PDF settings changes and concurrent printing-selector work were retained. The unrelated detached worktree was not merged.
-- Printing-selector review resolved the move from the legacy MTG page to the active shared page. Exact collector numbers are committed without another lookup. Review also fixed missing-image Apply failures, focus after row replacement, lost load errors during search, and the desktop panel covering all deck context. No unresolved selector correctness or security finding remains.
+- All seven parity feature groups now have source implementations and completion records under `plans/gui-cli-parity/`.
+- Translation now shares the runtime paper catalog and layout environment with PDF creation and calibration. Quality 0 is preserved. Failed jobs preserve the prior PDF through staged output and atomic replacement.
+- Plugin file retry retains its source and replaces results without multiplying quantities. A handler that produces no image reports an error instead of silent success. Plugins without entry-level retry APIs still reimport the source.
+- MTG custom images retain their provenance and paired backs. Failed rows remove only their new cache files. Worker release and EOF cleanup own every cached face, invalidate released rows, and allow a fresh import.
+- Studio jobs use trusted IPC, one active owner, structured prompts, stop events, bounded process cleanup, and the update activity gate. App quit waits for bounded cleanup before exit. Unsupported platforms do not load Windows automation. Build discovery requires Studio helpers only on Windows.
+- Export locks the new file and preference controls while images are committed. Single borderless DXF generation now enforces the same mat limits as batch generation.
 
 ## 2. Completion Status
 
-- **Implemented — Pokémon:** Shared editor, backend worker, Home choices, navigation, transactional export, documentation, tests, and `plans/pokemon-completion-summary.md` are present. Native release checks remain open.
-- **Completed with release checks — PDF creation settings:** Existing completion summary remains present. Its settings and worker contracts were retained.
-- **Not certified in this review — automated updates, double-sided cards, offset calibration, parent merge, PDF worker:** Historical completion summaries are absent. Current regression tests do not prove every historical acceptance condition.
-- **Completed — printing selector:** The side panel, active MTG integration, tests, screenshot, and `plans/printing-selector-completion-summary.md` are present. All three agent completion records are present. Quantity, exact printing identity, session drafts, paired export, and the Pokémon route are retained.
+| Plan | Status | Remaining acceptance |
+| --- | --- | --- |
+| 01 — Game plugins | Partial — source implemented; release checks open | Real-provider and successful frozen imports for the other plugin groups on supported release platforms. All 47 formats have offline real-parser success/failure fixtures. |
+| 02 — MTG imports | Partial — source implemented; release checks open | Installed-app checks on Windows/Linux and optional public-deck service checks. Frozen macOS custom JSON/CSV front/back imports pass. |
+| 03 — MTG preferences and tokens | Partial — source implemented; release checks open | Live-provider and installed-platform checks. Source tests cover shared CLI selection, preference precedence, token copies/deduplication, stale results, and manual-choice retry. Token failures retry with their source row. |
+| 04 — Cutting templates | Partial — source implemented; release checks open | Installed Windows/Linux and active-batch quit checks. macOS frozen template save and runtime PDF/calibration catalog use pass. |
+| 05 — Studio conversion | Partial — source implemented; Windows acceptance open | Real Studio conversion, output dimensions/cut paths, calibration reuse, stop/fail-safe behavior, and frozen Windows helper checks. Mocked checks cannot certify automation. |
+| 06 — Printer calibration | Partial — source implemented; release checks open | Installed Windows/Linux and physical printer alignment. CLI/worker output, old saves, front/back transforms, rendered sheets, and macOS frozen generation pass. |
+| 07 — Text translation | Partial — source implemented; release checks open | Installed Windows/Linux checks. Source IPC and frozen macOS custom-paper/quality-zero generation pass. |
+
+These are implementation records, not a claim that all platform acceptance conditions are complete.
 
 ## 3. Test Coverage
 
-- 114 Node tests passed. Node tests cover shared state, legacy drafts, retry errors, stale requests, quantities, paired faces, safe staging, Add/Replace/Cancel, commit rollback, worker lifecycle, IPC source validation, packaging discovery, explicit game routing, the session image cache, Unicode response headers, printing batches, and saved page size.
-- Printing-selector Electron tests passed on the active MTG page with local fixtures. Coverage includes all result pages, same-set variants, visible previews, draft versus Apply, exact saved collector number and quantity, focus return, radio arrow keys, Escape, front/back previews, retries, empty results, missing images, stale responses, 375px layout, and desktop card visibility. Six helper tests and nine integration tests are included in the Node suite. CSS and whitespace checks passed; the screenshot was inspected. Live Scryfall availability was not tested.
-- 28 combined Python tests passed with 3 live tests deselected. Offline Python tests cover structured parsing, strict lookup, TCG/Pocket/old-set sources, retry behavior, cache IDs, orphan cleanup, and protocol recovery. Existing PDF worker and creation backend checks also passed.
-- The Electron fixture smoke passed through the real Pokémon page and main-process two-copy export to Create PDF. Live TCG, Pocket, and old-set image lookups also passed.
-- The existing PDF preferences Electron smoke passed with the source worker, including real PDF/PNG output. Its frozen PDF worker run timed out at PDF generation on this host; it is not a passing frozen-PDF check. The new standalone frozen card worker parse smoke passed, with about 75 seconds of macOS signature-validation delay.
-- Windows/Linux native packages, full assistive-technology review, and physical print output were not tested here.
-- The final selector recovery check passed: a failed Apply callback keeps the panel open with the choice intact and an error message. Cancel remains available.
-- Image-cache checks passed: preview and Apply share one image download and blob URL; page reload reuses main-process bytes; closing the last window clears cached bytes. Pending downloads are aborted on cleanup, failed requests can be retried, and no image-cache files are written.
-- Loading-spinner checks passed for pending deck images and printing previews. A fixture with a ★ filename header passes through the native response-stream transport without the Electron `net.fetch` ByteString crash.
-- Printing batches passed checks for 24, 25, 26, 50, and 60 records. Later API pages wait until needed; Load more hides at the end. The Settings page saves a custom size across reload, and the real selector uses it for both initial and later batches.
+- Final full Node suite: **178 passed** with Node 22.23.4, including quit waiting, repeated quit, and bounded cleanup regressions.
+- Broad Python source run: **728 passed, 2 skipped, 24 sub-tests passed**. Provider checks use local fixtures. The two skips are opt-in frozen helper checks, which release builds now run. After the final MTG cache lifecycle fixes, **40 targeted worker/import/preference tests passed** without warnings.
+- Portable worker validation/recovery checks: **14 passed** using the real source worker. Container tests can now select a helper through `CARD_MAKER_PDF_WORKER` instead of requiring `/app` on every host.
+- Electron checks passed for game plugins, MTG imports/preferences, existing card list/printing selector, templates, Studio controls, translation, printer calibration, and custom-template-to-calibration integration. New tests cover export control locking, cancelled dialogs, repeated jobs, prompt replies, and stop.
+- Isolated macOS native helpers were built without replacing the project virtual environment. **Two frozen parity tests passed** with Python removed from child PATH: card custom imports and template → runtime catalog → PDF → calibration → translation. After the final rebuild, the frozen card test passed again with released-image refetch and EOF cleanup. The four tested macOS helpers were staged in the ignored `GUI/bin` directory, and binary verification passed.
+- Letter and A4 calibration PDFs at 72 and 150 PPI were rendered and reviewed. CSS build and diff whitespace checks passed.
+- New Node/Python/UI checks are in the runners. Frozen parity is opt-in with `CARD_MAKER_PARITY_BIN_DIR`; the integration container supplies it. No real Windows Studio or physical printer check was run.
 
 ## 4. Action Items
 
-1. Recheck frozen PDF generation on macOS after the cold-start validation delay; its source-worker smoke passed. Run native Windows and Linux package and worker checks before release.
-2. Check native image-replacement dialogs, keyboard/screen-reader use, and physical print quality on release platforms.
-3. Add missing historical completion records before claiming that every older plan is complete. No selector implementation task remains open.
+1. On Windows with Studio installed, run the checks in `05-studio-conversion-completion-summary.md`; inspect actual `.studio3` dimensions and cut paths.
+2. Build and install releases on each target OS without local Python; isolated macOS helper checks do not replace an installed-app check. Check helper startup, image import/export, custom layouts, translation, calibration, and quit during active work.
+3. Check representative live game sources and MTG deck URLs. Keep provider failures separate from offline correctness results.
+4. Print calibration sheets and verify alignment on the target printer. Do not infer physical alignment from a PDF render.

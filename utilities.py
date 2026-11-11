@@ -2119,7 +2119,21 @@ def generate_md_pdf(
     paper_size = resolve_paper_size_alias(layout_config, paper_size)
     text_layout = layouts_data.get('text_box_layouts', {}).get(paper_size)
     if text_layout is None:
-        raise Exception(f'Unsupported paper size "{paper_size}" for text boxes.')
+        # Saved custom papers have no legacy pixel grid. Use the shared layout
+        # engine at the same reference PPI as the bundled text-box grids.
+        paper = layout_config.paper_sizes[paper_size]
+        card = layout_config.card_sizes['text_box']
+        registration = layout_config.defaults.registration.default
+        orientation = (Orientation.LANDSCAPE
+                       if size_convert.size_to_mm(paper.width) >= size_convert.size_to_mm(paper.height)
+                       else Orientation.PORTRAIT)
+        computed = page_manager.generate_layout(
+            orientation=orientation, card_width=card.width, card_height=card.height,
+            paper_width=paper.width, paper_height=paper.height,
+            inset=registration.inset, length=registration.length, ppi=300,
+        )
+        text_layout = {'x_pos': computed.x_pos, 'y_pos': computed.y_pos,
+                       'width': computed.card_width_px, 'height': computed.card_height_px}
     x_pos = text_layout['x_pos']
     y_pos = text_layout['y_pos']
     card_width = text_layout['width']

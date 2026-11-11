@@ -15,6 +15,21 @@ from plugins.gui_imports import GAMES, GameImporter, capabilities
 
 
 class GameImportCapabilityTests(unittest.TestCase):
+    def test_missing_output_is_reported_when_another_card_succeeds(self):
+        with tempfile.TemporaryDirectory() as cache:
+            def factory(directory):
+                def handle(index, code, quantity):
+                    if code == 'BT1-001':
+                        Image.new('RGB', (8, 8), 'red').save(Path(directory) / 'card.png')
+                    # Some CLI handlers print a warning and return on a missing image.
+                return handle
+            with patch('plugins.digimon.digimoncard.get_handle_card', side_effect=factory):
+                result = GameImporter(cache).import_game({'game': 'digimon', 'format': 'digimoncardio',
+                    'input': {'kind': 'text', 'value': '1 Agumon BT1-001\n1 Gabumon BT1-002'}})
+            self.assertEqual(result['status'], 'partial')
+            self.assertEqual(len(result['entries']), 1)
+            self.assertTrue(any('No printable image' in error['message'] for error in result['errors']))
+
     def test_capabilities_cover_all_supported_plugins(self):
         result = capabilities()['games']
         self.assertEqual({game['id'] for game in result}, set(GAMES))

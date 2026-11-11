@@ -28,7 +28,7 @@ test('the CLI used by the Windows build includes the persistent PDF worker', () 
 test('packaging rejects a missing Windows worker even if a Unix worker exists', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'card-maker-binaries-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  for (const script of getBuildTargets()) {
+  for (const script of getBuildTargets(undefined, 'win32')) {
     fs.writeFileSync(path.join(dir, executableNameFromScript(script, true)), 'fixture');
   }
   fs.unlinkSync(path.join(dir, 'pdf_worker.exe'));
@@ -45,7 +45,7 @@ for (const [platform, script, extension] of [
     assert.equal(getGuiBuildScript(platform), script);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'card-maker-platform-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-    for (const target of getBuildTargets()) {
+    for (const target of getBuildTargets(undefined, platform)) {
       const file = executableNameFromScript(target, platform === 'win32');
       fs.writeFileSync(path.join(dir, file), 'fixture');
     }
@@ -59,7 +59,17 @@ for (const [platform, script, extension] of [
   assert.ok(getBuildTargets().includes('card_worker.py'));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'card-worker-binaries-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  for (const target of getBuildTargets()) fs.writeFileSync(path.join(dir, executableNameFromScript(target, true)), 'fixture');
+  for (const target of getBuildTargets(undefined, 'win32')) fs.writeFileSync(path.join(dir, executableNameFromScript(target, true)), 'fixture');
   fs.unlinkSync(path.join(dir, 'card_worker.exe'));
   assert.throws(() => verifyBinaries({platform: 'win32', binDir: dir}), /card_worker\.exe/);
  });
+
+test('Studio entrypoints are required only on Windows', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-entrypoints-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  for (const script of ['studio_worker.py', 'dxf_to_studio3.py', 'pdf_worker.py'])
+    fs.writeFileSync(path.join(dir, script), "if __name__ == '__main__':\n    main()\n");
+  assert.deepEqual(getBuildTargets(dir, 'win32'), ['dxf_to_studio3.py', 'pdf_worker.py', 'studio_worker.py']);
+  assert.deepEqual(getBuildTargets(dir, 'darwin'), ['pdf_worker.py']);
+  assert.deepEqual(getBuildTargets(dir, 'linux'), ['pdf_worker.py']);
+});

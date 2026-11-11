@@ -23,6 +23,7 @@ GUI/dist
 GUI/bin/
 data
 # Compiled binaries and build artifacts
+/build/
 /card_worker
 /template_worker
 /dxf_to_studio3

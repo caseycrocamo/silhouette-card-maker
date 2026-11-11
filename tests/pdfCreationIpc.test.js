@@ -126,6 +126,7 @@ function loadIpc() {
     setTimeout,
     clearTimeout,
     require(name) {
+      if (name === './parityIpc') return require('../GUI/Utilities/parityIpc');
       // The fake filesystem below uses POSIX paths on every host.
       if (name === "path") return path.posix;
       if (name === "electron") return electron;

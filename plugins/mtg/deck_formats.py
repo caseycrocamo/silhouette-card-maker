@@ -203,7 +203,7 @@ def parse_moxfield(deck_text, handle_card: Callable) -> None:
     parse_deck_helper(deck_text, is_moxfield_card_line, extract_moxfield_card_data, handle_card)
 
 # Scryfall deck builder JSON
-def parse_scryfall_json(deck_text, handle_card: Callable, front_img_dir: str = '', double_sided_dir: str = '') -> None:
+def parse_scryfall_json(deck_text, handle_card: Callable, front_img_dir: str = '', double_sided_dir: str = '', image_handler: Callable = None) -> None:
     data = json.loads(deck_text)
     entries = data.get("entries", {})
     for entry in entries.values():
@@ -225,7 +225,9 @@ def parse_scryfall_json(deck_text, handle_card: Callable, front_img_dir: str = '
             print(', '.join(parts))
 
             # Scryfall JSON may already include image URIs, so we can fetch directly without an extra Scryfall API call. If not, fall back to handle_card which will query Scryfall by set/collector number or name.
-            if image_uris and front_img_dir:
+            if image_uris and image_uris.get("front") and image_handler:
+                image_handler(index, name, set_code, collector_number, quantity, image_uris["front"], image_uris.get("back"))
+            elif image_uris and front_img_dir:
                 clean_name = remove_nonalphanumeric(name)
 
                 front_url = image_uris.get("front")
@@ -264,7 +266,7 @@ def extract_mpcfill_card_ids(deck_text: str) -> set[str]:
             card_ids.add(front.find("id").text)
 
     backs = data.find("backs")
-    if backs:
+    if backs is not None:
         for back in backs.findall("card"):
             card_ids.add(back.find("id").text)
 
@@ -302,7 +304,7 @@ def parse_mpcfill_xml(deck_text, handle_card: Callable) -> None:
             slots[slot_idx]["front_name"] = name
 
     # Assign backs to ALL their slots
-    if backs:
+    if backs is not None:
         for back in backs.findall("card"):
             card_id = back.find("id").text
             name = extract_card_name(back.find("name").text)
@@ -329,7 +331,7 @@ def parse_mpcfill_xml(deck_text, handle_card: Callable) -> None:
 # Cards with an image URL are fetched directly. Cards without an image URL are fetched
 # from Scryfall using set and collector number, or by name as a fallback.
 # Identical cards are tallied to minimize Scryfall API calls.
-def parse_cubecobra_csv(deck_text, handle_card: Callable, front_img_dir: str, double_sided_dir: str) -> None:
+def parse_cubecobra_csv(deck_text, handle_card: Callable, front_img_dir: str, double_sided_dir: str, image_handler: Callable = None) -> None:
     reader = csv.DictReader(io.StringIO(deck_text))
 
     # Phase 1: Parse all rows and tally unique cards
@@ -364,7 +366,9 @@ def parse_cubecobra_csv(deck_text, handle_card: Callable, front_img_dir: str, do
         print(', '.join(parts))
 
         try:
-            if image_url:
+            if image_url and image_handler:
+                image_handler(index, name, set_code, collector_number, quantity, image_url, image_back_url)
+            elif image_url:
                 # Fetch image directly from URL
                 print(f'Fetching image from URL: {image_url}')
                 clean_name = remove_nonalphanumeric(name)
@@ -465,7 +469,7 @@ class DeckFormat(str, Enum):
     SIMPLE = "simple"
     URL = "url"
 
-def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable, front_img_dir: str = '', double_sided_dir: str = '') -> None:
+def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable, front_img_dir: str = '', double_sided_dir: str = '', image_handler: Callable = None) -> None:
     if format == DeckFormat.SIMPLE:
         parse_simple_list(deck_text, handle_card)
     elif format == DeckFormat.MTGA:
@@ -479,11 +483,11 @@ def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable, front_
     elif format == DeckFormat.MOXFIELD:
         parse_moxfield(deck_text, handle_card)
     elif format == DeckFormat.SCRYFALL_JSON:
-        parse_scryfall_json(deck_text, handle_card, front_img_dir, double_sided_dir)
+        parse_scryfall_json(deck_text, handle_card, front_img_dir, double_sided_dir, image_handler)
     elif format == DeckFormat.MPCFILL_XML:
         parse_mpcfill_xml(deck_text, handle_card)
     elif format == DeckFormat.CUBECOBRA_CSV:
-        parse_cubecobra_csv(deck_text, handle_card, front_img_dir, double_sided_dir)
+        parse_cubecobra_csv(deck_text, handle_card, front_img_dir, double_sided_dir, image_handler)
     elif format == DeckFormat.URL:
         parse_url(deck_text, handle_card)
     else:

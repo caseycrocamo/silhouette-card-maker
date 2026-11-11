@@ -5,11 +5,21 @@ require('./Utilities/cardImageCache').registerCardImageCache();
 const { startPdfWorker, stopPdfWorker, stopPdfWorkerForUpdate } = require('./Utilities/pdfWorkerClient');
 const { stopTemplateWorker } = require('./Utilities/templateWorkerClient');
 const { stopCardWorker } = require('./Utilities/cardWorkerClient');
+const { shutdownStudioClient } = require('./Utilities/studioClient');
 const { createUpdateService } = require('./Utilities/updateService');
 const { registerUpdateIpc } = require('./Utilities/updateIpc');
 const { jobActivity } = require('./Utilities/jobActivity');
+const { registerAppShutdown } = require('./Utilities/appShutdown');
 let updateService;
 let removeUpdateIpc;
+const shutdown = registerAppShutdown({
+  app,
+  beforeShutdown: () => {
+    if (updateService) updateService.stop();
+    if (removeUpdateIpc) removeUpdateIpc();
+  },
+  shutdownTasks: [stopTemplateWorker, shutdownStudioClient, stopCardWorker, stopPdfWorker]
+});
 
 async function prepareInstall() {
   await jobActivity.pauseAndDrain();
@@ -29,6 +39,7 @@ async function prepareInstall() {
   await stopPdfWorkerForUpdate();
   await stopCardWorker();
   await stopTemplateWorker();
+  await shutdownStudioClient();
 }
 
 function createWindow() {
@@ -46,6 +57,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  if (shutdown.isQuitting()) return;
   createWindow();
   // Fire-and-forget: start the persistent PDF worker in the background so the
   // window paints immediately while the ~12s worker startup tax runs behind it.
@@ -64,25 +76,14 @@ app.whenReady().then(() => {
   updateService.start();
 });
 
-app.on('before-quit', () => {
-  if (updateService) updateService.stop();
-  if (removeUpdateIpc) removeUpdateIpc();
-  stopTemplateWorker();
-  stopCardWorker();
-  stopPdfWorker();
-});
-
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    stopTemplateWorker();
-    stopCardWorker();
-    stopPdfWorker();
+  if (process.platform !== 'darwin' && !shutdown.isQuitting()) {
     app.quit();
   }
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (!shutdown.isQuitting() && BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });

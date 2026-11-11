@@ -32,8 +32,9 @@
   const saved = store.load(options.format);
   options = normalizeOptions(game, saved, options.format);
   let exporting = false;
-  const save = draft => store.save(draft, options.workflow, options);
-  const adapter = game.id === "mtg" ? require("./adapters/mtg").createAdapter() :
+  let mtgPreferences = saved.mtgPreferences || {};
+  const save = draft => store.save(draft, options.workflow, {...options, mtgPreferences});
+  const adapter = game.id === "mtg" ? require("./adapters/mtgImport").createImportAdapter(request, () => mtgPreferences) :
     game.id === "pokemon" ? require("./adapters/pokemon").createAdapter(request) :
       require("./adapters/plugin").createAdapter(game, request, {
         format: options.format,
@@ -46,15 +47,42 @@
         readOptions: () => ({ source: options.source, scenario: options.scenario, localBackDir: options.localBackDir }),
       });
 
+  adapter.setFormat?.(options.format);
+  let preferencesHost;
+  function renderPreferences() {
+    if (!preferencesHost) return;
+    preferencesHost.replaceChildren();
+    require("../shared/cardList/mtgPreferences").mountPreferences(preferencesHost, mtgPreferences, value => {
+      mtgPreferences=value; controller.stale(); save(get("longText").value);
+    });
+  }
+  if (game.id === "mtg") {
+    preferencesHost=document.createElement("div"); get("longForm").append(preferencesHost);
+    renderPreferences();
+  }
+  const openFile=require("../shared/button").createButton({text:"Open deck file"});
+  get("longForm").append(openFile);
+  openFile.onclick=async()=>{
+    if (exporting || controller.state.status === 'loading') return;
+    try {
+      const selected=await ipcRenderer.invoke("select-card-input",{kind:"file"});
+      if(!selected)return;
+      get('exportError').textContent = '';
+      adapter.clearSource?.(); adapter.setInput?.({kind:"file",value:selected.path});
+      controller.dirty(game.id === "mtg" ? selected.text : selected.path);
+      await controller.search(game.id === "mtg" ? selected.text : selected.path);
+    } catch (error) { get('exportError').textContent = error.message || String(error); }
+  };
   function renderOptions() {
     get("gameOptionsSummary").textContent = optionsSummary(game, options);
     get("gameOptionsBtn").hidden = !hasGameOptions(game);
     const format = game.formats.find(item => item.id === options.format);
-    const help = { url: "Enter a deck URL or ID for this format.", file: "Select Open deck file to choose your deck list.", opaque: "Paste your deck code." };
+    const help = { url: "Enter a deck URL or ID for this format.", file: "Select Open deck file, or paste the source document below.", opaque: "Paste your deck code." };
     get("syntaxHelp").textContent = help[format?.inputKind] || game.help;
-    get("longText").readOnly = format?.inputKind === "file";
+    get("longText").readOnly = format?.inputKind === "file" && game.id !== "mtg";
+    openFile.hidden = format?.inputKind !== "file";
     get("longText").placeholder = game.example || "";
-    get("searchBtn").textContent = format?.inputKind === "file" ? "Open deck file" : "Search cards";
+    get("searchBtn").textContent = format?.inputKind === "file" && game.id !== "mtg" ? "Open deck file" : "Search cards";
   }
   get("printingHint").hidden = game.id !== "mtg";
   renderOptions();
@@ -69,6 +97,7 @@
       get("exportBtn").disabled = !ready || exporting;
       get("searchBtn").disabled = state.status === "loading" || exporting;
       get("gameOptionsBtn").disabled = state.status === "loading" || exporting;
+      openFile.disabled = state.status === "loading" || exporting;
       const entries = state.entries.filter(item => item.status === "ready");
       const copies = entries.reduce((count, item) => count + item.qty, 0);
       get("resultStatus").textContent = state.status === "loading" ?
@@ -93,6 +122,8 @@
     if (choice.mode === "translation") { location.href = "../MagicTheGathering/text_translation.html"; return; }
     game = choice.game;
     options = next;
+    mtgPreferences = nextSaved.mtgPreferences || mtgPreferences;
+    renderPreferences();
     adapter.setFormat?.(options.format);
     renderOptions();
     if (lookupChanged) controller.dirty(nextSaved.draft);
@@ -100,6 +131,7 @@
   };
   get("longText").addEventListener("input", () => {
     closePrintingSelector();
+    if(game.id === "mtg") adapter.clearSource?.();
     controller.dirty(get("longText").value);
   });
   get("longForm").addEventListener("submit", event => {
@@ -114,6 +146,9 @@
   get("nextCreatePdfBtn").addEventListener("click", async () => {
     if (!controller.canExport() || exporting) return;
     exporting = true;
+    const formControls = [...get('longForm').querySelectorAll('button,input,select,textarea')]
+      .map(control => ({ control, disabled: control.disabled }));
+    formControls.forEach(({ control }) => { control.disabled = true; });
     for (const id of ["longText", "nextCreatePdfBtn", "searchBtn", "exportBtn", "gameOptionsBtn"]) get(id).disabled = true;
     get("exportError").textContent = "";
     for (const control of get("output").querySelectorAll("select,button")) control.disabled = true;
@@ -127,6 +162,7 @@
     } catch (error) {
       get("exportError").textContent = error.message || String(error); get("exportError").focus();
     } finally {
+      formControls.forEach(({ control, disabled }) => { control.disabled = disabled; });
       for (const control of get("output").querySelectorAll("select,button")) control.disabled = false;
       exporting = false;
       get("longText").disabled = false; get("searchBtn").disabled = false; get("gameOptionsBtn").disabled = false;

@@ -21,8 +21,10 @@ function hasMainEntrypoint(filePath) {
   }
 }
 
-function getBuildTargets(projectRoot = PROJECT_ROOT) {
-  return getPythonFiles(projectRoot).filter(file => hasMainEntrypoint(path.join(projectRoot, file)));
+function getBuildTargets(projectRoot = PROJECT_ROOT, platform = process.platform) {
+  const windowsOnly = new Set(['studio_worker.py', 'dxf_to_studio3.py']);
+  return getPythonFiles(projectRoot).filter(file =>
+    (platform === 'win32' || !windowsOnly.has(file)) && hasMainEntrypoint(path.join(projectRoot, file)));
 }
 
 function executableNameFromScript(scriptName, windows) {
@@ -71,7 +73,7 @@ function saveHash(hash) {
 }
 
 function verifyBinaries({ platform = process.platform, binDir = path.join(PROJECT_ROOT, 'GUI', 'bin') } = {}) {
-  const missing = getBuildTargets()
+  const missing = getBuildTargets(PROJECT_ROOT, platform)
     .map(script => executableNameFromScript(script, platform === 'win32'))
     .filter(file => !fs.existsSync(path.join(binDir, file)));
   if (missing.length) {

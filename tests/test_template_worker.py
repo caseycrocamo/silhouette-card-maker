@@ -114,3 +114,41 @@ def test_optimized_geometry_and_version_reload_from_override(tmp_path):
     assert layout["rows"] == generated[1]["rows"]
     assert layout["cols"] == generated[1]["cols"]
     assert layout["version"] == generated[1]["version"]
+
+
+def test_gui_matches_cli_geometry_for_variants_orientations_and_aliases(tmp_path, monkeypatch):
+    import hashlib
+    from click.testing import CliRunner
+    import generate_dxf
+    import template_worker
+    bundled = ROOT / 'assets' / 'layouts.json'
+    original = hashlib.sha256(bundled.read_bytes()).hexdigest()
+    monkeypatch.setenv('SCM_EXTRA_LAYOUTS', str(tmp_path / 'custom-layouts.json'))
+    monkeypatch.setenv('SCM_LAYOUT_OVERRIDES', str(tmp_path / 'overrides.json'))
+    (tmp_path / 'custom-layouts.json').write_text('{}')
+    (tmp_path / 'overrides.json').write_text('{}')
+    for variant in ['default', 'borderless']:
+        for orientation in ['portrait', 'landscape', 'optimize']:
+            suffix = f'{variant}-{orientation}'
+            cli = CliRunner().invoke(generate_dxf.cli, [
+                'single', str(tmp_path / f'cli-{suffix}.dxf'), '--card_size', 'standard',
+                '--paper_size', 'LETTER', '--variant', variant, '--orientation', orientation,
+                '--card_radius', '0.1in',
+            ], standalone_mode=False)
+            assert cli.exception is None, cli.output
+            result = template_worker.handle({'command': 'single', 'card_size': 'standard',
+                'paper_size': 'LETTER', 'variant': variant, 'orientation': orientation,
+                'card_radius': '0.1in', 'output_path': str(tmp_path / f'gui-{suffix}.dxf')})
+            assert result['ok'], result
+            for key in ['rows', 'cols', 'capacity', 'orientation', 'max_length_mm']:
+                assert result[key] == cli.return_value[key]
+    assert hashlib.sha256(bundled.read_bytes()).hexdigest() == original
+
+
+def test_borderless_rejects_paper_larger_than_mat_without_writing(tmp_path):
+    destination = tmp_path / 'oversize.dxf'
+    result = _worker(tmp_path, [{'command': 'single', 'card_size': 'poker',
+        'paper_width': '25in', 'paper_height': '13in', 'variant': 'borderless',
+        'output_path': str(destination)}])[1]
+    assert result['ok'] is False
+    assert not destination.exists()

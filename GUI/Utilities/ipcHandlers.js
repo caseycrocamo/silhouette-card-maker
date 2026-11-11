@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const fs = require("fs");
 const path = require("path");
-const { spawn } = require("child_process");
 const {
   runCreatePdf,
   runOffsetPdf,
@@ -663,122 +662,10 @@ ipcMain.handle('select-card-input', async (event, { kind = 'file' } = {}) => {
   return { path: selected, text: await fs.promises.readFile(selected, 'utf8') };
 });
 
-ipcMain.handle("run-md-to-pdf", async (event, options = {}) =>
-  jobActivity.run(async () => {
-    const markdownText =
-      typeof options.markdownText === "string" ? options.markdownText : "";
-    const paperSize = options.paperSize || "letter";
-    const ppi = options.ppi || 300;
-    const quality = options.quality || 75;
-    const outputFileName = options.outputFileName || "translatedTextBoxes.pdf";
-
-    if (!markdownText.trim()) {
-      throw new Error("Markdown input is empty.");
-    }
-
-    const inputPath = path.join(getDecklistDir(), "entries.md");
-    const outputPath = path.join(getOutputDir(), outputFileName);
-
-    await fs.promises.mkdir(getDecklistDir(), { recursive: true });
-    await fs.promises.mkdir(getOutputDir(), { recursive: true });
-    await fs.promises.writeFile(inputPath, markdownText, "utf8");
-
-    const projectRoot = path.join(__dirname, "../..");
-    const executableName =
-      process.platform === "win32"
-        ? "translated_text_boxes_to_pdf.exe"
-        : "translated_text_boxes_to_pdf";
-    const isPackaged = require("electron").app.isPackaged;
-    const baseDir = isPackaged
-      ? path.join(process.resourcesPath, "bin")
-      : path.join(__dirname, "../bin");
-    const exePath = path.join(baseDir, executableName);
-
-    if (process.platform !== "win32" && fs.existsSync(exePath)) {
-      try {
-        fs.chmodSync(exePath, "755");
-      } catch (err) {
-        console.error("Error setting executable permissions:", err);
-      }
-    }
-
-    return new Promise((resolve, reject) => {
-      const args = [
-        "--input_path",
-        inputPath,
-        "--output_path",
-        outputPath,
-        "--paper_size",
-        paperSize,
-        "--ppi",
-        String(ppi),
-        "--quality",
-        String(quality),
-      ];
-
-      let command = exePath;
-      let commandArgs = args;
-      let cwd = baseDir;
-
-      // Fallback to Python script in development if the executable hasn't been built yet.
-      if (!fs.existsSync(exePath)) {
-        const scriptPath = path.join(
-          projectRoot,
-          "translated_text_boxes_to_pdf.py",
-        );
-        const pythonPath =
-          process.platform === "win32"
-            ? path.join(projectRoot, ".venv", "Scripts", "python.exe")
-            : path.join(projectRoot, ".venv", "bin", "python");
-
-        if (!fs.existsSync(scriptPath)) {
-          reject(
-            `Cannot find translated_text_boxes_to_pdf.py at ${scriptPath}`,
-          );
-          return;
-        }
-
-        if (!fs.existsSync(pythonPath)) {
-          reject(`Cannot find Python interpreter at ${pythonPath}`);
-          return;
-        }
-
-        command = pythonPath;
-        commandArgs = [scriptPath, ...args];
-        cwd = projectRoot;
-      }
-
-      const mdProcess = spawn(command, commandArgs, {
-        shell: false,
-        cwd,
-        env: {
-          ...process.env,
-          CARD_MAKER_DECKLIST_DIR: getDecklistDir(),
-          CARD_MAKER_OUTPUT_DIR: getOutputDir(),
-        },
-      });
-
-      let stdout = "";
-      let stderr = "";
-      mdProcess.stdout.on("data", (data) => {
-        stdout += data.toString();
-      });
-      mdProcess.stderr.on("data", (data) => {
-        stderr += data.toString();
-      });
-      mdProcess.on("error", (err) => {
-        reject(`Failed to start markdown PDF process: ${err.message}`);
-      });
-      mdProcess.on("close", (code) => {
-        if (code === 0) {
-          resolve(stdout);
-        } else {
-          reject(stderr || `Exited with code ${code}`);
-        }
-      });
-    });
-  }),
-);
+require('./parityIpc').registerParityIpc({
+  ipcMain, app, dialog, trustedFeatureSender, jobActivity, getPdfCapabilities, getOutputDir,
+  getLayoutEnvironment: require('../shared/constants').getLayoutEnvironment,
+});
 
 ipcMain.handle("get-front-images", async (event, directory) => {
   try {

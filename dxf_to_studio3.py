@@ -62,6 +62,57 @@ pyautogui.FAILSAFE = True
 from pywinauto import Application
 
 
+# The GUI worker supplies a stop hook. CLI calls keep their existing behavior.
+_stop_check = lambda: None
+_raw_pyautogui = pyautogui
+
+
+class _CheckedAutomation:
+    def __getattr__(self, name):
+        value = getattr(_raw_pyautogui, name)
+        if not callable(value) or isinstance(value, type):
+            return value
+        def checked(*args, **kwargs):
+            _stop_check()
+            return value(*args, **kwargs)
+        return checked
+
+
+def configure_runtime(check_stop=None):
+    global _stop_check, pyautogui
+    _stop_check = check_stop or (lambda: None)
+    pyautogui = _CheckedAutomation() if check_stop else _raw_pyautogui
+
+
+def automation_sleep(seconds):
+    deadline = time.monotonic() + seconds
+    while True:
+        _stop_check()
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(remaining, 0.1))
+
+
+def release_inputs():
+    """Release modifiers and mouse buttons after interruption; keep Studio open."""
+    previous = _raw_pyautogui.FAILSAFE
+    try:
+        _raw_pyautogui.FAILSAFE = False
+        for key in ('ctrl', 'alt', 'shift', 'win'):
+            try:
+                _raw_pyautogui.keyUp(key)
+            except Exception:
+                pass
+        for button in ('left', 'middle', 'right'):
+            try:
+                _raw_pyautogui.mouseUp(button=button)
+            except Exception:
+                pass
+    finally:
+        _raw_pyautogui.FAILSAFE = previous
+
+
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -170,18 +221,19 @@ def type_in_field(value: str):
     pyautogui.write(str(value))
 
     pyautogui.press('enter')
-    time.sleep(ACTION_DELAY)
+    automation_sleep(ACTION_DELAY)
 
 
 def set_clipboard(text: str):
     """Set clipboard text (Windows)."""
+    _stop_check()
     subprocess.run(['clip'], input=text.encode('utf-16-le'), check=True)
 
 
 def paste():
     """Paste from clipboard."""
     pyautogui.hotkey('ctrl', 'v')
-    time.sleep(SETTLE_DELAY)
+    automation_sleep(SETTLE_DELAY)
 
 
 def load_calibration(filepath: Path = None) -> Optional[dict]:
@@ -207,8 +259,13 @@ def load_calibration(filepath: Path = None) -> Optional[dict]:
 def save_calibration(data: dict, filepath: Path):
     """Save calibration data to JSON file."""
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
+    temporary = filepath.with_name(filepath.name + '.tmp')
+    try:
+        with open(temporary, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+        os.replace(temporary, filepath)
+    finally:
+        temporary.unlink(missing_ok=True)
     print(f"\nCalibration saved to: {filepath}")
 
 
@@ -222,12 +279,12 @@ def connect_and_resize_studio(studio_path: str = DEFAULT_STUDIO_PATH):
     app = Application(backend="win32").connect(path=studio_path, timeout=30)
     window = app.window(title_re=".*Silhouette Studio.*")
     window.restore()
-    time.sleep(ACTION_DELAY)
+    automation_sleep(ACTION_DELAY)
     window.move_window(
         x=WINDOW_X, y=WINDOW_Y,
         width=WINDOW_WIDTH, height=WINDOW_HEIGHT
     )
-    time.sleep(ACTION_DELAY)
+    automation_sleep(ACTION_DELAY)
 
     rect = window.rectangle()
     window_rect = {
@@ -252,10 +309,11 @@ def start_and_resize_studio(studio_path: str = DEFAULT_STUDIO_PATH):
     if not os.path.exists(studio_path):
         raise FileNotFoundError(f"Not found: {studio_path}")
 
+    _stop_check()
     subprocess.Popen([studio_path])
     startup_wait = 2 * LONG_DELAY
     print(f"Waiting {startup_wait}s for startup...")
-    time.sleep(startup_wait)
+    automation_sleep(startup_wait)
 
     return connect_and_resize_studio(studio_path)
 
@@ -304,10 +362,11 @@ class SilhouetteAutomation:
         if not os.path.exists(self.studio_path):
             raise FileNotFoundError(f"Not found: {self.studio_path}")
 
+        _stop_check()
         subprocess.Popen([self.studio_path])
         startup_wait = 2 * LONG_DELAY
         print(f"Waiting {startup_wait}s for startup...")
-        time.sleep(startup_wait)
+        automation_sleep(startup_wait)
 
         self.window, _ = connect_and_resize_studio(self.studio_path)
 
@@ -317,9 +376,9 @@ class SilhouetteAutomation:
         """Close Silhouette Studio."""
         print("Closing Silhouette Studio...")
         pyautogui.hotkey('alt', 'F4')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
         pyautogui.press('n')  # Don't save
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
     def click(self, x: int, y: int, button: str = 'left'):
         """Click at window-relative coordinates.
@@ -331,7 +390,7 @@ class SilhouetteAutomation:
         abs_x = win_x + x
         abs_y = win_y + y
         pyautogui.click(abs_x, abs_y, button=button)
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
     def click_element(self, element_id: str, button: str = 'left'):
         """
@@ -363,19 +422,19 @@ class SilhouetteAutomation:
         print("Setting DXF import to As-is...")
 
         pyautogui.hotkey('ctrl', 'k')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
         self.click_element("pref_import_tab")
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
         self.click_element("pref_dxf_open_dropdown")
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
         self.click_element("pref_dxf_asis")
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
         self.click_element("pref_ok")
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
     # -------------------------------------------------------------------------
     # File Operations
@@ -387,19 +446,19 @@ class SilhouetteAutomation:
         print(f"Opening: {filepath}")
 
         pyautogui.hotkey('ctrl', 'o')
-        time.sleep(self.action_delay * 2)
+        automation_sleep(self.action_delay * 2)
 
         # Type path into the file dialog
         pyautogui.hotkey('ctrl', 'a')
-        time.sleep(SETTLE_DELAY)
+        automation_sleep(SETTLE_DELAY)
         set_clipboard(filepath)
         paste()
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
         pyautogui.press('enter')
         # Wait for Silhouette Studio to fully load the DXF
         print(f"  Waiting {LONG_DELAY}s for file to load...")
-        time.sleep(LONG_DELAY)
+        automation_sleep(LONG_DELAY)
 
     def save_as(self, output_path: str):
         """Save as .studio3 file."""
@@ -410,32 +469,32 @@ class SilhouetteAutomation:
         print(f"Saving: {output_path}")
 
         pyautogui.hotkey('ctrl', 'shift', 's')
-        time.sleep(self.action_delay * 2)
+        automation_sleep(self.action_delay * 2)
 
         # Type path into the save dialog
         pyautogui.hotkey('ctrl', 'a')
-        time.sleep(SETTLE_DELAY)
+        automation_sleep(SETTLE_DELAY)
         set_clipboard(output_path)
         paste()
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
         pyautogui.press('enter')
-        time.sleep(LONG_DELAY)
+        automation_sleep(LONG_DELAY)
 
         # Handle overwrite confirmation
         pyautogui.press('y')
-        time.sleep(LONG_DELAY)
+        automation_sleep(LONG_DELAY)
 
         # Close the file to avoid accumulating open tabs
         pyautogui.hotkey('ctrl', 'w')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
     def new_document(self):
         """Create new document (discard current)."""
         pyautogui.hotkey('ctrl', 'n')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
         pyautogui.press('n')  # Don't save
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
     # -------------------------------------------------------------------------
     # Page Setup
@@ -493,7 +552,7 @@ class SilhouetteAutomation:
 
         # Open the Page Setup panel once
         self.click_element("page_setup")
-        time.sleep(ACTION_DELAY)
+        automation_sleep(ACTION_DELAY)
 
         # Enable constrain so mat, media size, and orientation behave predictably.
         if not self.is_constrain_media_checked():
@@ -548,9 +607,9 @@ class SilhouetteAutomation:
         """Select all objects and group them."""
         print("  Selecting all and grouping...")
         pyautogui.hotkey('ctrl', 'a')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
         pyautogui.hotkey('ctrl', 'g')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
     def center_to_page(self):
         """Center the selected object(s) to the page."""
@@ -558,7 +617,7 @@ class SilhouetteAutomation:
 
         self.select_all_and_group()
         self.click_element("transform")
-        time.sleep(ACTION_DELAY)
+        automation_sleep(ACTION_DELAY)
         self.click_element("center_to_page")
         self.ungroup_all()
 
@@ -566,9 +625,9 @@ class SilhouetteAutomation:
         """Select all and ungroup (Ctrl+A, Ctrl+Shift+G)."""
         print("  Ungrouping...")
         pyautogui.hotkey('ctrl', 'a')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
         pyautogui.hotkey('ctrl', 'shift', 'g')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
     def flip_vertically(self):
         """Select all objects and flip them vertically via the right-click context menu.
@@ -580,7 +639,7 @@ class SilhouetteAutomation:
         """
         print("  Flipping vertically...")
         pyautogui.hotkey('ctrl', 'a')
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
         self.click_element("cutting_path_menu", button='right')
         self.click_element("context_flip_vertically")
 
@@ -594,9 +653,9 @@ class SilhouetteAutomation:
     #     """
     #     print("  Releasing compound path...")
     #     pyautogui.hotkey('ctrl', 'a')
-    #     time.sleep(self.action_delay)
+    #     automation_sleep(self.action_delay)
     #     pyautogui.hotkey('ctrl', 'shift', 'e')
-    #     time.sleep(self.action_delay)
+    #     automation_sleep(self.action_delay)
 
     # -------------------------------------------------------------------------
     # Registration Marks
@@ -607,11 +666,11 @@ class SilhouetteAutomation:
         print(f"  Setting registration marks: enabled={settings.enabled}")
 
         self.click_element("print_cut")
-        time.sleep(ACTION_DELAY)
+        automation_sleep(ACTION_DELAY)
 
         # Enable registration marks
         self.click_element("regmark_checkbox")
-        time.sleep(self.action_delay)
+        automation_sleep(self.action_delay)
 
         if settings.enabled:
             # Set length

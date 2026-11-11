@@ -24,7 +24,8 @@ If you're starting with a fresh install of your operating system, follow these s
 Once Python and Node.js are installed, continue with the project setup steps below.
 # Silhouette Card Maker GUI
 
-- Node.js (v18 or newer recommended)
+- Node.js 22 or newer is required.
+  With nvm, run `nvm install` and `nvm use` from the project root before you install dependencies or run a build.
 - Python (v3.10+ recommended)
 - All Python dependencies listed in the project root `requirements.txt`
 ## 1. Install Python
@@ -260,8 +261,10 @@ import does not clear existing print images.
 **Tools → Cutting templates** creates DXF files from named or custom sizes. Select
 a DXF destination for one template, or an output folder for a batch. Saved custom
 sizes and layouts are stored in the app data folder and become available in PDF
-settings. The app keeps bundled layout definitions unchanged. This screen does
-not convert DXF files to Silhouette Studio files.
+settings. The app keeps bundled layout definitions unchanged. On Windows, the Studio section also converts DXF files to `.studio3` files.
+It supports one file, batches, missing outputs, a preview without automation,
+automation calibration, and Stop. Studio automation controls the mouse and
+keyboard and needs the stated screen size. macOS and Linux show manual steps.
 
 **Settings → Printer offsets** includes rotation, per-run overrides, PPI, and an
 output PDF path. Blank overrides use saved values; applying a PDF does not save
@@ -291,3 +294,38 @@ menu or a blank card list does not start the card worker. Python starts when car
 lookup or import is needed. Both entrypoint build scripts refresh the catalog.
 After changing `plugins/gui_game_metadata.py`, run
 `python scripts/export_game_catalog.py`; the catalog parity test checks the result.
+
+
+### MTG imports and selection rules
+
+Choose MTG, then use Options to select the input format. The GUI supports simple,
+MTGA, MTGO, Archidekt, Deckstats, Moxfield, CubeCobra CSV, Scryfall JSON, MPCFill
+XML, and deck URLs. File formats keep their source for retry; use Open another
+deck file to replace it. Custom art keeps its original image and paired back.
+Its printing picker is disabled because it has no Scryfall printing identity.
+
+MTG selection preferences support ignoring supplied printing data, older sets,
+ordered preferred sets and languages, excluded sets, showcase, extra art,
+Universes Beyond, and related tokens. Apply preferences, then search again.
+Supplied printing data wins unless ignored. Prefer and exclude Universes Beyond
+cannot both be selected. Failed-entry retries keep successful results.
+
+### Translation files and outputs
+
+Text translation can open Markdown for editing, or use pasted text. Choose the
+PDF destination and any configured paper size, including custom sizes saved in
+Tools. Quality 0 is supported. Generation uses the editor text, preserves the
+source file, and shows a link to the actual PDF. A failed conversion preserves
+an existing output PDF and removes temporary files.
+
+Additional checks: `npm run test:mtg-imports-ui`,
+`npm run test:text-translation-ui`, and `npm run test:studio-tools-ui`.
+Real Studio conversion and calibration still need acceptance checks on Windows
+with Silhouette Studio installed. Source-worker tests do not prove native release
+behavior; rebuild helpers before packaging.
+
+
+Run native helper parity checks with `CARD_MAKER_PARITY_BIN_DIR` set to a folder
+containing the four built helpers, then run `npm run test:gui-frozen`. The tests
+remove Python from the helper execution path and use temporary input/output
+folders. Without that variable, these checks are skipped.

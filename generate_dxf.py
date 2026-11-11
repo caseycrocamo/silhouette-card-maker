@@ -212,6 +212,13 @@ def single(output_file, paper_size, card_size, card_height, card_width, card_rad
             resolved_paper_height = paper_height
         paper_label = f"{paper_width}x{paper_height}"
 
+    # Apply the same mat limit used by batch generation to single templates.
+    if variant == 'borderless':
+        maximum_inches = max(size_convert.size_to_mm(resolved_paper_width),
+                             size_convert.size_to_mm(resolved_paper_height)) / 25.4
+        if maximum_inches > 12 and not borderless_fits_12x24_mat(resolved_paper_width, resolved_paper_height):
+            raise click.UsageError('Borderless virtual paper size exceeds the 12x24 cutting mat.')
+
     # Apply name overrides
     if card_name is not None:
         card_label = card_name

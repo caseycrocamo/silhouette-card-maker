@@ -122,6 +122,8 @@ function renderResults(
           "text-sm text-content-light mt-2",
         ),
       );
+    if (printing?.custom) row.appendChild(el("p", "Custom image — printing selection unavailable", "text-sm text-content-light mt-2"));
+    if (entry.token) row.appendChild(el("p", "Related token", "text-sm text-content-light mt-2"));
     if (printing?.rawCard && onPrintingExact) {
       const trigger = createButton(
         {
@@ -162,7 +164,7 @@ function renderResults(
       trigger.title = `Change printing for ${entry.name}`;
       trigger.appendChild(imageFrame);
       row.prepend(trigger);
-    } else if (printing && adapter.printings) {
+    } else if (printing && !printing.custom && adapter.printings) {
       const label = el("label", "Printing", "block text-sm mt-3");
       const select = el("select");
       select.className = "paper-input";

@@ -10,6 +10,8 @@ function getGuiBuildScript(platform = process.platform) {
 module.exports = { getGuiBuildScript };
 
 if (require.main === module) {
+  require('./scripts/check-node-version');
+  if (process.exitCode) process.exit(process.exitCode);
   execSync(`npm run ${getGuiBuildScript()}`, {
     cwd: path.join(__dirname, 'GUI'), stdio: 'inherit'
   });

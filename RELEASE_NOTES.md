@@ -1,3 +1,37 @@
+# Silhouette Card Maker 1.4.0
+
+November 11, 2026
+
+## Features
+
+- Import cards from 22 game groups through one game picker. Choose deck formats, image sources, scenario modes, and print setup in the options popup.
+- Import MTG decks from CLI-supported text formats, deck URLs, CSV, JSON, and XML files. Preserve custom images, card quantities, and paired fronts and backs.
+- Apply MTG printing preferences for sets, language, showcase and extra artwork, Universe Beyond cards, and related tokens. Keep manual printing choices and retry failed rows.
+- Generate DXF cutting templates with named or custom sizes, page orientation, corner radii, and borderless layouts. Batch generation supports progress, cancellation, and layout optimization.
+- Save custom sizes and layouts for PDF creation and calibration without restarting the app.
+- Convert DXF templates with Silhouette Studio on Windows. Tools provides prompts, progress, stop controls, and calibration reuse. This feature requires an installed copy of Silhouette Studio.
+- Set saved or per-run printer offsets, rotation, PPI, and output paths. Generate calibration sheets for selected paper sizes, including custom sizes.
+- Generate MTG text-translation PDFs from pasted Markdown or a file. Select paper sizes from the shared catalog and preserve quality zero for lossless output.
+
+## Interface and reliability
+
+- Open game options from bundled metadata without waiting for Python startup.
+- Keep card selection focused on the deck and previews. Hide filename captions on PDF creation previews.
+- Preserve successful imports, quantities, source files, custom image provenance, and paired cards when retrying errors.
+- Wait for active jobs and worker cleanup before quitting or installing an update.
+- Use Piltover Archive for Riftbound name lookup and correct Sorcery HTTP session handling.
+- Bundle native workers so the installed app does not need a local Python installation.
+
+## Testing and builds
+
+- Use mocked card-provider responses in automated tests. Reject unmocked network access.
+- Run full source Python tests on Python 3.12–3.15 for pushes and pull requests to main.
+- Check frozen imports, templates, PDF creation, calibration, and translation during platform release builds.
+- Build Windows x64, Linux x64, macOS Intel, and macOS Apple silicon installers and archives.
+- Use Node.js 22 or newer for development and builds.
+
+Windows Studio automation and physical print alignment require checks with the installed application and printer. Automated checks use mock providers and cannot verify third-party service availability.
+
 # Silhouette Card Maker 1.3.0
 
 November 11, 2026

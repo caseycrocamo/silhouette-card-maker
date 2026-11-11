@@ -240,7 +240,17 @@ def fetch_card(
 
     front_img_dir: str,
     double_sided_dir: str,
+    art_handler=None,
 ):
+    def emit_art(*args, **kwargs):
+        if art_handler is not None:
+            metadata = dict(card_json)
+            if selected_card is not None and args[3:5] == (selected_card.get("set"), selected_card.get("collector_number")):
+                metadata = dict(selected_card)
+            return art_handler(metadata, *args, **kwargs)
+        return fetch_card_art(*args, **kwargs)
+
+    selected_card = None
     # Query based on card set and card collector number if provided
     if not ignore_set_and_collector_number and card_set != "" and card_collector_number != "":
         card_info_query = f"https://api.scryfall.com/cards/{card_set.lower()}/{card_collector_number}"
@@ -248,7 +258,7 @@ def fetch_card(
         # Query for card info
         card_json = request_scryfall(card_info_query).json()
 
-        fetch_card_art(
+        emit_art(
             index,
             quantity,
             remove_nonalphanumeric(card_json['name']),
@@ -269,7 +279,7 @@ def fetch_card(
                     if related["component"] == "token":
                         card_info_query = related["uri"]
                         card_json = request_scryfall(card_info_query).json()
-                        fetch_card_art(
+                        emit_art(
                             index,
                             quantity,
                             # Offsprint tokens have the same name as the card, so append _token to differentiate
@@ -343,10 +353,11 @@ def fetch_card(
                 print(f'No printings found for "{name}" with preferred options. Using default instead.')
             else:
                 best_print = filtered_printings[0]
+                selected_card = best_print
                 set = best_print["set"]
                 collector_number = best_print["collector_number"]
 
-        fetch_card_art(
+        emit_art(
             index,
             quantity,
             clean_card_name,
@@ -367,7 +378,7 @@ def fetch_card(
                     if related["component"] == "token":
                         card_info_query = related["uri"]
                         card_json = request_scryfall(card_info_query).json()
-                        fetch_card_art(
+                        emit_art(
                             index,
                             quantity,
                             # Offsprint tokens have the same name as the card, so append _token to differentiate

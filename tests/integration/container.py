@@ -14,7 +14,7 @@ def collect():
         def pytest_collection_finish(self, session):
             self.items = [dict(suite="python", name=i.nodeid) for i in session.items]
     collector = Collector()
-    status = pytest.main(["--collect-only", "-q", "-m", "not slow", "test", "tests/integration/test_validation.py", "tests/integration/test_runner.py"], plugins=[collector])
+    status = pytest.main(["--collect-only", "-q", "-m", "not slow", "test", "tests", "--ignore=tests/test_pdf_worker.py"], plugins=[collector])
     if status != 0:
         raise RuntimeError(f"pytest collection failed: {status}")
     cases = collector.items
@@ -26,6 +26,8 @@ def collect():
         ("custom-layout-calibration", "gui-parity"), ("game-plugins", "game-plugins"),
         ("template-tools", "template-tools"), ("printer-calibration", "printer-calibration"),
         ("pdf-settings", "pdf-settings"), ("updates", "update-ui"),
+        ("mtg-imports", "mtg-imports"), ("translation-parity", "text-translation"),
+        ("studio-tools", "studio-tools"),
     ]]
     print("CASES=" + json.dumps(cases))
 

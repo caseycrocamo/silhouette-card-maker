@@ -48,6 +48,13 @@ def cli(
 
     tokens: bool,
 ):
+    from plugins.mtg.selection_options import validate_options
+    validate_options({
+        "ignore_set_and_collector_number": ignore_set_and_collector_number,
+        "prefer_older_sets": prefer_older_sets, "prefer_set": prefer_set, "ignore_set": ignore_set,
+        "prefer_showcase": prefer_showcase, "prefer_extra_art": prefer_extra_art,
+        "prefer_lang": prefer_lang, "prefer_ub": prefer_ub, "ignore_ub": ignore_ub, "tokens": tokens,
+    })
     ensure_directory(front_directory)
     ensure_directory(double_sided_directory)
     if format == DeckFormat.URL:

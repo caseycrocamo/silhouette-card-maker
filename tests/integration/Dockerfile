@@ -20,5 +20,5 @@ RUN pyinstaller --noconfirm --onefile --collect-submodules plugins --distpath /a
 RUN cp /app/pdf_worker /app/GUI/bin/pdf_worker
 COPY . /app
 RUN npm run build:css
-ENV HOME=/tmp/home PYTHONIOENCODING=utf-8 CARD_MAKER_SMOKE_SOURCE_WORKER=/opt/venv/bin/python
+ENV HOME=/tmp/home PYTHONIOENCODING=utf-8 CARD_MAKER_SMOKE_SOURCE_WORKER=/opt/venv/bin/python CARD_MAKER_PARITY_BIN_DIR=/app/GUI/bin
 ENTRYPOINT ["python", "tests/integration/container.py"]

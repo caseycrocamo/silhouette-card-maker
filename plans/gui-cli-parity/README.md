@@ -24,11 +24,11 @@ Within each plan, merge the service contract before starting dependent UI integr
 
 ## Current limits that affect design
 
-- The MTG GUI uses a JavaScript Scryfall adapter. The card worker currently serves Pokémon only.
+- MTG keeps its JavaScript adapter for the existing default workflow. CLI-format imports and bulk preferences use the card worker. The worker also serves Pokémon and the 20 other plugin groups.
 - Many plugin fetch functions write to repository folders and report errors with print statements. GUI imports need isolated output and structured errors.
 - The PDF worker is serial. Keep it serial.
 - Studio conversion is Windows only and exits on other platforms at import time. Do not import it into a cross-platform worker.
-- Calibration generation runs at import time. Refactor it before worker use.
+- Calibration generation is callable and has an import guard. The PDF worker handles it.
 - Custom layouts already have an extra-layout mechanism through `SCM_EXTRA_LAYOUTS`. Use it for app-owned definitions.
 - Existing plans describe earlier implementations. These plans cover the remaining gaps and take precedence for this work.
 
@@ -38,9 +38,17 @@ Each feature must work in a packaged app without a local Python install. Preserv
 
 ## Execution rules
 
-- This is an implementation plan. No feature code has been changed.
+- These plans define the acceptance scope. See the completion records for current implementation and validation status.
 - Each subagent owns only the files assigned to it. Agents share the codebase. Do not revert another agent's edits. The integration agent resolves shared-file changes after each handoff.
 - Reuse `GUI/shared/` controls and `GUI/styles/tailwind.css`. Use `paper-button` for HTML and `createButton` from `GUI/shared/button.js` for JavaScript. Keep button states in the shared component.
 - Use argument arrays and `shell: false` for processes. Keep logs separate from worker JSON. Keep jobs inside the existing job-activity gate so updates cannot restart the app during work.
 - Use temporary folders and stub network services for automated tests. Add new test files to the applicable test runner. Run live service checks separately.
 - Finish with a review of the full diff and the acceptance checks below.
+
+
+## Current implementation
+
+All seven feature groups now have source implementations. Completion records are
+stored beside each plan as `NN-name-completion-summary.md`. Their remaining
+platform checks are part of acceptance; passing source tests alone does not close
+them. The root `plan-completion-report.md` records the combined review.

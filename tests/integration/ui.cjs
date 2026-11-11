@@ -193,25 +193,29 @@ async function settings() {
 async function translation() {
   ensureDirs();
   await load('MagicTheGathering/text_translation.html');
-  await js("window.alert = value => window.__lastAlert = String(value); void 0");
-  await js("document.getElementById('generatePdfBtn').click()" );
-  assert(await js("window.__lastAlert.includes('Please paste markdown')"), 'Empty markdown validation missing');
+  await waitFor(() => js("document.getElementById('paperSize').options.length > 0 && !document.getElementById('generatePdfBtn').disabled"), 'Translation paper sizes did not load', 30000);
+  await js("document.getElementById('mdText').value='';document.getElementById('mdForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
+  assert(await js("document.getElementById('translationStatus').textContent.includes('Enter Markdown')"), 'Empty markdown validation missing');
   await js("document.getElementById('mdText').value='### Test Card {1}{U}\\n\\n*Creature*\\n\\nDraw a card.'; document.getElementById('ppi').value='0'");
   await js("document.getElementById('mdForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
-  assert(await js("window.__lastAlert.includes('PPI must')"), 'Invalid PPI validation missing');
-  await js("document.getElementById('ppi').value='300'; document.getElementById('quality').value='101'");
+  assert(await js("document.getElementById('translationStatus').textContent.includes('PPI must')"), 'Invalid PPI validation missing');
+  await js("document.getElementById('ppi').value='72'; document.getElementById('quality').value='101'");
   await js("document.getElementById('mdForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
-  assert(await js("window.__lastAlert.includes('Quality must')"), 'Invalid quality validation missing');
-  await js("document.getElementById('quality').value='75'; document.getElementById('paperSize').value='a4'");
+  assert(await js("document.getElementById('translationStatus').textContent.includes('Quality must')"), 'Invalid quality validation missing');
+  chosenPdf = path.join(outputDir(), 'ui-translation-é.pdf');
+  await click('chooseTranslationOutputBtn');
+  await waitFor(() => js(`document.getElementById('translationOutputPath').value === ${JSON.stringify(chosenPdf)}`), 'Translation output selection failed');
+  await js("document.getElementById('quality').value='0'; document.getElementById('paperSize').value='a4'");
   await js("document.getElementById('mdForm').dispatchEvent(new Event('submit', {bubbles:true,cancelable:true}))");
-  const translationPdf = path.join(outputDir(), 'translatedTextBoxes.pdf');
-  await waitFor(async () => {
-    if (!fs.existsSync(translationPdf)) return false;
-    const partial = fs.readFileSync(translationPdf);
-    return partial.subarray(0, 5).toString() === '%PDF-' && partial.length > 500;
-  }, 'Translation PDF was not generated', 45000);
-  verifyPdf(translationPdf);
-  await waitFor(async () => (await js('location.pathname')).endsWith('/Utilities/pdf_viewer.html'), 'Translation did not open viewer', 20000);
+  await waitFor(() => js("document.getElementById('translationStatus').textContent.startsWith('PDF created:')"), 'Translation PDF was not generated', 45000);
+  verifyPdf(chosenPdf);
+  assert((await js('location.pathname')).endsWith('/MagicTheGathering/text_translation.html'), 'Translation left the editor before the result link was opened');
+  assert(await js(`document.getElementById('translationStatus').textContent.includes(${JSON.stringify(chosenPdf)})`), 'Translation did not show the actual PDF path');
+  assert(await js(`document.getElementById('translationResult').href.endsWith('?path=' + encodeURIComponent(${JSON.stringify(chosenPdf)}))`), 'Translation viewer link does not target the selected PDF');
+  assert(await js("!document.getElementById('translationResultContainer').hidden && !document.getElementById('generatePdfBtn').disabled"), 'Translation result or repeat action is unavailable');
+  await click('translationResult');
+  await waitFor(async () => (await js('location.pathname')).endsWith('/Utilities/pdf_viewer.html'), 'Translation result link did not open viewer', 20000);
+  assert(await js(`document.getElementById('pdfFrame').src === ${JSON.stringify(pathToFileURL(chosenPdf).href)}`), 'Translation viewer opened the wrong PDF');
 }
 
 async function pdfViewer() {

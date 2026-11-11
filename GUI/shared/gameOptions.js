@@ -8,7 +8,10 @@ function loadGameOptions(game) {
   if (["mtg", "pokemon"].includes(game.id)) {
     return {
       ...game,
-      formats: [{ id: "default", label: game.id === "pokemon" ? "Limitless" : "Card names and printings", inputKind: "text" }],
+      formats: game.id === "pokemon" ? [{ id: "default", label: "Limitless", inputKind: "text" }] : [
+        { id: "default", label: "Card names and printings", inputKind: "text" },
+        ...["simple", "mtga", "mtgo", "archidekt", "deckstats", "moxfield", "cubecobra_csv", "scryfall_json", "mpcfill_xml", "url"].map(id => ({ id, label: id.replace(/_/g, " ").toUpperCase(), inputKind: id === "url" ? "url" : ["cubecobra_csv", "scryfall_json", "mpcfill_xml"].includes(id) ? "file" : "text" })),
+      ],
       sourceChoices: [], scenarioChoices: [],
     };
   }

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cutting templates</title><link rel="stylesheet" href="../styles/main.css"><link rel="stylesheet" href="tools.css"><script src="../shared/navbar.js"></script><script defer src="templates.js"></script></head>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cutting templates</title><link rel="stylesheet" href="../styles/main.css"><link rel="stylesheet" href="tools.css"><script src="../shared/navbar.js"></script><script defer src="templates.js"></script><script defer src="studio.js"></script></head>
 <body class="min-h-screen bg-surface text-content"><nav-bar current-step="4"></nav-bar><main class="container mx-auto px-4 pt-24 pb-8 max-w-5xl">
 <section class="paper-element p-6 mb-6"><h1 class="text-2xl font-semibold mb-2">DXF cutting templates</h1><p>Create a cutting file for a card and paper size.</p><div id="catalogError" role="alert"></div>
 <form id="templateForm" class="template-grid">
@@ -7,4 +7,42 @@
 <fieldset><legend>Paper</legend><label><input type="radio" name="paperMode" value="named" checked> Named size</label><select class="paper-input" id="paperSize"></select><label><input type="radio" name="paperMode" value="custom"> Custom dimensions</label><div class="pair"><label>Width <input class="paper-input" id="paperWidth" placeholder="8.5in"></label><label>Height <input class="paper-input" id="paperHeight" placeholder="11in"></label></div><label>Paper label <input class="paper-input" id="paperName"></label></fieldset>
 <fieldset><legend>Template</legend><label>Variant <select class="paper-input" id="variant"><option value="default">Default</option><option value="borderless">Borderless</option></select></label><label>Orientation <select class="paper-input" id="orientation"><option value="optimize">Optimize</option><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label><label><input id="saveLayout" type="checkbox" checked> Save new sizes and layout for PDF settings</label></fieldset>
 <section class="template-actions"><label>DXF file <input class="paper-input" id="outputFile" readonly></label><button class="paper-button" type="button" id="chooseFile">Choose DXF file</button><label>Batch output folder <input class="paper-input" id="outputDir" readonly></label><button class="paper-button" type="button" id="chooseFolder">Choose folder</button><button class="paper-button" type="submit">Generate DXF</button><button class="paper-button" type="button" id="batchMissing">Generate missing</button><button class="paper-button" type="button" id="batchAll">Regenerate all</button><button class="paper-button" type="button" id="batchOptimize">Optimize all</button><button class="paper-button" type="button" id="cancel">Cancel batch</button></section>
-</form><progress id="progress" class="hidden" max="1" value="0"></progress><p id="status" role="status" aria-live="polite"></p><div id="results"></div></section></main></body></html>
+</form><progress id="progress" class="hidden" max="1" value="0"></progress><p id="status" role="status" aria-live="polite"></p><div id="results"></div></section>
+<section class="paper-element p-6 mb-6" aria-labelledby="studioHeading">
+<h2 id="studioHeading" class="text-2xl font-semibold mb-2">Silhouette Studio conversion</h2>
+<p id="studioCapability" role="status">Checking Studio automation support…</p>
+<p>Windows automation controls the mouse and keyboard and sets Studio to 1920 × 1080. Keep Studio visible. Do not use other apps during conversion. Move the pointer to the top-left corner to stop, or use Stop automation. A stopped job keeps completed files; the current Studio document can be incomplete.</p>
+<p>Studio automation calibration records control positions. It is separate from printer offset calibration in Settings.</p>
+<form id="studioForm" class="template-grid">
+<fieldset><legend>Job</legend>
+<label>Operation <select class="paper-input" id="studioOperation"><option value="single">Single DXF</option><option value="batch">Batch templates</option><option value="calibrate">Automation calibration</option></select></label>
+<label data-studio-single>Input DXF <input class="paper-input" id="studioInput" readonly></label><button data-studio-single class="paper-button" type="button" data-studio-pick="dxf" data-studio-target="studioInput">Choose DXF</button>
+<label data-studio-single>Output Studio file <input class="paper-input" id="studioOutput" readonly></label><button data-studio-single class="paper-button" type="button" data-studio-pick="studio3" data-studio-target="studioOutput">Choose .studio3 output</button>
+<label data-studio-batch>Templates folder <input class="paper-input" id="studioTemplates" readonly></label><button data-studio-batch class="paper-button" type="button" data-studio-pick="directory" data-studio-target="studioTemplates">Choose templates folder</button>
+<label data-studio-batch><input type="checkbox" id="studioMissing"> Convert missing outputs only</label>
+<label data-studio-convert><input type="checkbox" id="studioDryRun" checked> Dry run: preview files without automation</label>
+</fieldset>
+<fieldset><legend>Studio</legend>
+<label>Studio executable <input class="paper-input" id="studioExecutable"></label><button class="paper-button" type="button" data-studio-pick="executable" data-studio-target="studioExecutable">Choose Studio executable</button>
+<label>Automation calibration JSON <input class="paper-input" id="studioCalibration"></label><button class="paper-button" type="button" data-studio-pick="calibration" data-studio-target="studioCalibration">Choose calibration JSON</button>
+<label>Delay between actions (seconds) <input class="paper-input" id="studioDelay" type="number" min="0.1" step="0.1" value="1"></label>
+</fieldset>
+<fieldset data-studio-convert><legend>Page and registration</legend>
+<label>Units (must match Studio) <select class="paper-input" id="studioUnit"><option value="mm">Millimetres</option><option value="in">Inches</option></select></label>
+<div data-studio-single class="studio-fields">
+<label>Paper size <select class="paper-input" id="studioPaper"><option value="letter">letter</option></select></label>
+<label>Orientation <select class="paper-input" id="studioOrientation"><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label>
+<label><input id="studioCenter" type="checkbox" checked> Center paths on the page</label>
+<label><input id="studioRegistration" type="checkbox"> Enable registration marks</label>
+<label>Registration length <input class="paper-input" id="studioRegLength" type="number" min="0" step="any" value="0"></label>
+<label>Registration thickness <input class="paper-input" id="studioRegThickness" type="number" min="0" step="any" value="0"></label>
+<label>Registration inset <input class="paper-input" id="studioRegInset" type="number" min="0" step="any" value="0"></label>
+<p>Zero uses Studio's minimum. For batches, paper, orientation, centering, and registration use the same layout rules as the CLI.</p>
+</div></fieldset>
+<div class="template-actions"><button id="studioStart" type="submit" class="paper-button" disabled>Preview conversion</button><button id="studioStop" type="button" class="paper-button" disabled>Stop automation</button></div>
+</form>
+<div id="studioPrompt" class="paper-surface p-4 mt-4" hidden aria-live="polite"></div>
+<progress id="studioProgress" class="hidden" max="1" value="0"></progress>
+<p id="studioStatus" role="status" aria-live="polite"></p>
+<div id="studioResults" class="studio-results"></div>
+</section></main></body></html>
