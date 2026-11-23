@@ -3,204 +3,94 @@ import io
 import json
 import os
 import re
+import ssl
 
 from enum import Enum
-from typing import Callable, Tuple
+from typing import Callable
 from xml.etree import ElementTree as ET
-
-from plugins.mtg.patterns import DECKSTATS_PATTERN, MOXFIELD_PATTERN
+from urllib.parse import urlparse
 
 import cloudscraper
 import mtg_parser
 import requests
 
 from plugins.mtg.common import remove_nonalphanumeric
+from plugins.mtg.url_sections import read_sections
 from utilities import guess_extension
 
-card_data_tuple = Tuple[str, str, int, int]
+TEXT_FORMATS = frozenset(('default', 'simple', 'mtga', 'mtgo', 'archidekt', 'deckstats', 'moxfield'))
+SECTION_NAMES = frozenset(('about', 'deck', 'main', 'mainboard', 'sideboard', 'commander',
+                           'commanders', 'companion', 'companions', 'maybeboard', 'considering'))
+URL_PARSERS = (
+    mtg_parser.AetherhubDeckParser, mtg_parser.ArchidektDeckParser,
+    mtg_parser.DeckstatsDeckParser, mtg_parser.MoxfieldDeckParser,
+    mtg_parser.MtggoldfishDeckParser, mtg_parser.MtgjsonDeckParser,
+    mtg_parser.ScryfallDeckParser, mtg_parser.TappedoutDeckParser,
+    mtg_parser.TcgplayerDeckParser,
+)
 
-def parse_deck_helper(deck_text: str, is_card_line: Callable[[str], bool], extract_card_data: Callable[[str], card_data_tuple], handle_card: Callable) -> None:
-    error_lines = []
 
+def parse_card_line(raw: str):
+    """Read the shared SCM, Arena, MTGO, Archidekt, Moxfield and Deckstats syntax."""
+    line = raw.strip()
+    if (not line or line.startswith(('//', '#')) or
+            line.lower().rstrip(':') in SECTION_NAMES):
+        return None
+    quantity = 1
+    count = re.match(r'^(\d+)[xX]?\s+', line)
+    if count:
+        quantity = int(count[1])
+        line = line[count.end():].strip()
+    if quantity < 1 or quantity > 9007199254740991:
+        raise ValueError('Enter a positive whole quantity.')
+
+    set_code = collector_number = ''
+    prefix = re.match(r'^\[([\w]+)?#([^\]]+)\]\s*', line)
+    if prefix:
+        set_code, collector_number = prefix[1] or '', prefix[2].strip()
+        line = line[prefix.end():]
+
+    # Site annotations are not part of the printed name or collector number.
+    line = re.split(r'\s+(?:\[|#!|\^|\*[A-Za-z]+\*)', line, maxsplit=1)[0].strip()
+    printing = re.search(r'\s+\(([A-Za-z0-9]+)\)(?:\s+(\S+))?$', line)
+    if printing:
+        set_code, collector_number = printing[1], printing[2] or ''
+        line = line[:printing.start()].strip()
+    if not line or re.fullmatch(r'\d+[xX]?', line):
+        raise ValueError('Enter a card name.')
+    return line, set_code, collector_number, quantity
+
+
+def parse_card_list(deck_text, handle_card: Callable, errors=None) -> None:
+    """Parse mixed text exports, retaining valid rows and reporting failed rows."""
     index = 0
-    for line in deck_text.strip().split('\n'):
-        if is_card_line(line):
-            index = index + 1
+    about = False
+    for source_line, raw in enumerate(deck_text.splitlines(), 1):
+        try:
+            line = raw.strip()
+            if line.lower().rstrip(':') == 'about':
+                about = True
+                continue
+            if about and line.lower().startswith('name '):
+                about = False
+                continue
+            if line:
+                about = False
+            card = parse_card_line(raw)
+            if card is None:
+                continue
+            index += 1
+            handle_card(index, *card)
+        except Exception as exc:
+            message = f'Line {source_line}: {exc}'
+            print(f'Error: {message}')
+            if errors is not None:
+                errors.append({'line': source_line, 'message': str(exc)})
 
-            name, set_code, collector_number, quantity = extract_card_data(line)
 
-            parts = [f'Index: {index}', f'quantity: {quantity}']
-            if set_code: parts.append(f'set code: {set_code}')
-            if collector_number: parts.append(f'collector number: {collector_number}')
-            if name: parts.append(f'name: {name}')
-            print(', '.join(parts))
-            try:
-                handle_card(index, name, set_code, collector_number, quantity)
-            except Exception as e:
-                print(f'Error: {e}')
-                error_lines.append((line, e))
-
-        else:
-            print(f'Skipping: "{line}"')
-
-    if len(error_lines) > 0:
-        print(f'Errors: {error_lines}')
-
-# Isshin, Two Heavens as One
-# Arid Mesa
-# Battlefield Forge
-# Blazemire Verge
-# Blightstep Pathway
-# Blood Crypt
-def parse_simple_list(deck_text, handle_card: Callable) -> None:
-    def is_simple_card_line(line) -> bool:
-        return bool(line.strip())
-
-    def extract_simple_card_data(line) -> card_data_tuple:
-        return (line.strip(), "", "", 1)
-
-    parse_deck_helper(deck_text, is_simple_card_line, extract_simple_card_data, handle_card)
-
-# About
-# Name Death & Taxes
-
-# Companion
-# 1 Yorion, Sky Nomad
-
-# Deck
-# 2 Arid Mesa
-# 1 Lion Sash
-# 1 Loran of the Third Path
-# 2 Witch Enchanter
-
-# Sideboard
-# 1 Containment Priest
-def parse_mtga(deck_text, handle_card: Callable) -> None:
-    pattern = re.compile(r'(\d+)x?\s+(.+?)\s+\((\w+)\)\s+(\d+)', re.IGNORECASE)
-    fallback_pattern = re.compile(r'(\d+)x?\s+(.+)')
-
-    def is_mtga_card_line(line) -> bool:
-        return bool(pattern.match(line) or fallback_pattern.match(line))
-
-    def extract_mtga_card_data(line) -> card_data_tuple:
-        match = pattern.match(line)
-        if match:
-            quantity = int(match.group(1))
-            name = match.group(2).strip()
-            set_code = match.group(3).strip()
-            collector_number = match.group(4).strip()
-
-            return (name, set_code, collector_number, quantity)
-        else:
-            # Handle simpler "1x Mountain" lines
-            fallback_match = fallback_pattern.match(line)
-            quantity = int(fallback_match.group(1))
-            name = fallback_match.group(2).strip()
-
-            return (name, "", "", quantity)
-
-    parse_deck_helper(deck_text, is_mtga_card_line, extract_mtga_card_data, handle_card)
-
-# 1 Abzan Battle Priest
-# 1 Abzan Falconer
-# 1 Aerial Surveyor
-# 1 Ainok Bond-Kin
-# 1 Angel of Condemnation
-# 2 Witch Enchanter
-
-# SIDEBOARD:
-# 1 Containment Priest
-# 3 Deafening Silence
-# 2 Disruptor Flute
-def parse_mtgo(deck_text, handle_card: Callable) -> None:
-    def is_mtgo_card_line(line) -> bool:
-        line = line.strip()
-        return bool(line and line[0].isdigit())
-
-    def extract_mtgo_card_data(line) -> card_data_tuple:
-        parts = line.split(' ', 1)
-        quantity = int(parts[0])
-        name = parts[1].strip()
-        return (name, "", "", quantity)
-
-    parse_deck_helper(deck_text, is_mtgo_card_line, extract_mtgo_card_data, handle_card)
-
-# 1x Agadeem's Awakening // Agadeem, the Undercrypt (znr) 90 [Resilience,Land]
-# 1x Ancient Cornucopia (big) 16 [Maybeboard{noDeck}{noPrice},Mana Advantage]
-# 1x Arachnogenesis (cmm) 647 [Maybeboard{noDeck}{noPrice},Mass Disruption]
-# 1x Ashnod's Altar (ema) 218 *F* [Mana Advantage]
-# 1x Assassin's Trophy (sld) 139 [Targeted Disruption]
-# 2x Boseiju Reaches Skyward // Branch of Boseiju (neo) 177 [Ramp] ^Have,#37d67a^
-def parse_archidekt(deck_text, handle_card: Callable) -> None:
-    pattern = re.compile(r'^(\d+)x?\s+(.+?)\s+\((\w+)\)\s+([\w\-]+).*')
-    def is_archidekt_card_line(line: str) -> bool:
-        return bool(pattern.match(line))
-
-    def extract_archidekt_card_data(line: str) -> card_data_tuple:
-        match = pattern.match(line)
-        quantity = int(match.group(1))
-        name = match.group(2).strip()
-        set_code = match.group(3).strip()
-        collector_number = match.group(4).strip()
-
-        return (name, set_code, collector_number, quantity)
-
-    parse_deck_helper(deck_text, is_archidekt_card_line, extract_archidekt_card_data, handle_card)
-
-# //Main
-# 1 [2XM#310] Ash Barrens
-# 1 Blinkmoth Nexus
-# 1 Bloodstained Mire
-# 1 Buried Ruin
-# 2 Command Beacon
-
-# //Sideboard
-# 1 [2XM#315] Darksteel Citadel
-
-# //Maybeboard
-# 1 [MID#159] Smoldering Egg // Ashmouth Dragon
-def parse_deckstats(deck_text, handle_card: Callable) -> None:
-    def is_deckstats_card_line(line: str) -> bool:
-        return bool(DECKSTATS_PATTERN.match(line))
-
-    def extract_deckstats_card_data(line: str) -> card_data_tuple:
-        match = DECKSTATS_PATTERN.match(line)
-        quantity = int(match.group(1))
-        set_code = match.group(2) or ""
-        collector_number = match.group(3) or ""
-        name = re.sub(r'\s*#!.*$', '', match.group(4).strip())
-
-        return (name, set_code, collector_number, quantity)
-
-    parse_deck_helper(deck_text, is_deckstats_card_line, extract_deckstats_card_data, handle_card)
-
-# 1 Lulu, Loyal Hollyphant (CLB) 477 *E*
-# 1 Abzan Battle Priest (IMA) 2
-# 1 Abzan Falconer (ZNC) 9
-# 1 Aerial Surveyor (NEC) 5
-# 1 Ainok Bond-Kin (2X2) 5
-# 1 Pegasus Guardian // Rescue the Foal (CLB) 36
-# 4 Plains (MOM) 277
-# 2 Witch Enchanter // Witch-Blessed Meadow (MH3) 239
-
-# SIDEBOARD:
-# 1 Containment Priest (M21) 13
-# 1 Deafening Silence (MB2) 9
-# 1 Disruptor Flute (MH3) 209
-def parse_moxfield(deck_text, handle_card: Callable) -> None:
-    def is_moxfield_card_line(line: str) -> bool:
-        return bool(MOXFIELD_PATTERN.match(line))
-
-    def extract_moxfield_card_data(line: str) -> card_data_tuple:
-        match = MOXFIELD_PATTERN.match(line)
-        quantity = int(match.group(1))
-        name = match.group(2).strip()
-        set_code = match.group(3).strip()
-        collector_number = match.group(4).strip()
-
-        return (name, set_code, collector_number, quantity)
-
-    parse_deck_helper(deck_text, is_moxfield_card_line, extract_moxfield_card_data, handle_card)
+# Keep CLI names and imports compatible; all text formats use the same reader.
+parse_simple_list = parse_mtga = parse_mtgo = parse_card_list
+parse_archidekt = parse_deckstats = parse_moxfield = parse_card_list
 
 # Scryfall deck builder JSON
 def parse_scryfall_json(deck_text, handle_card: Callable, front_img_dir: str = '', double_sided_dir: str = '', image_handler: Callable = None) -> None:
@@ -403,18 +293,37 @@ def parse_cubecobra_csv(deck_text, handle_card: Callable, front_img_dir: str, do
 #   Supported sites:
 #     Aetherhub, Archidekt, Deckstats, Moxfield, MTG Goldfish,
 #     MTGJSON, Scryfall, Tapped Out, TCGPlayer
-def parse_url(deck_url, handle_card: Callable) -> None:
-    scraper = cloudscraper.create_scraper()
+def parse_url(deck_url, handle_card: Callable, options=None) -> None:
+    deck_url = deck_url.strip()
+    if urlparse(deck_url).scheme not in ('http', 'https'):
+        print('URL not recognized: enter an HTTP or HTTPS deck URL.')
+        return
+    # Select only online readers. The library's general dispatcher can fall
+    # back to treating an unsupported URL as a card name.
+    parser = next((reader for cls in URL_PARSERS if (reader := cls()).can_handle(deck_url)), None)
+    if parser is None:
+        print(f'URL not recognized by any supported site: {deck_url}')
+        return
+    reader = parser._parse_deck
+    parser._parse_deck = lambda document: read_sections(parser, reader, document, options or {})
+    scraper = cloudscraper.create_scraper(ssl_context=ssl.create_default_context(cafile=requests.certs.where()))
+    # Site readers do not set timeouts themselves.
+    original_request = scraper.request
+    def bounded_request(method, url, **kwargs):
+        kwargs.setdefault('timeout', (5, 30))
+        response = original_request(method, url, **kwargs)
+        response.raise_for_status()
+        return response
+    scraper.request = bounded_request
     try:
-        cards = mtg_parser.parse_deck(deck_url, scraper)
+        # The reader fetches the site's document, then calls its site parser.
+        cards = parser.parse_deck(deck_url, scraper)
     except Exception as e:
         print(f"Error while fetching deck from URL: {deck_url} ({e})")
         return
 
     if not cards:
-        # mtg_parser returns None when no parser recognizes the URL (unsupported
-        # site or malformed link), as opposed to a recognized site failing to fetch.
-        print(f"URL not recognized by any supported site: {deck_url}")
+        print(f"Failed to read deck from URL: {deck_url}")
         return
 
     error_lines = []
@@ -438,26 +347,31 @@ def parse_url(deck_url, handle_card: Callable) -> None:
             break
 
         index += 1
-        name = card.name
-        set_code = card.extension
-        collector_number = card.number
-        quantity = card.quantity
-
-        parts = [f'Index: {index}', f'quantity: {quantity}']
-        if set_code: parts.append(f'set code: {set_code}')
-        if collector_number: parts.append(f'collector number: {collector_number}')
-        if name: parts.append(f'name: {name}')
-        print(', '.join(parts))
         try:
-            handle_card(index, name, set_code, collector_number, quantity)
+            # mtg_parser selects the site's reader, downloads its document, and
+            # parses that document. Feed its records into the shared SCM reader.
+            if not isinstance(card.name, str) or not card.name.strip():
+                raise ValueError('The deck contains an empty card name.')
+            if not isinstance(card.quantity, int) or isinstance(card.quantity, bool) or card.quantity < 1:
+                raise ValueError('Enter a positive whole quantity.')
+            line = f'{card.quantity} {card.name}'
+            if card.extension:
+                line += f' ({card.extension})'
+                if card.number is not None and str(card.number):
+                    line += f' {card.number}'
+            parsed = parse_card_line(line)
+            if parsed is None:
+                raise ValueError('The deck contains an empty card record.')
+            handle_card(index, *parsed)
         except Exception as e:
             print(f'Error: {e}')
-            error_lines.append((name, e))
+            error_lines.append((card.name, e))
 
     if len(error_lines) > 0:
         print(f'Errors: {error_lines}')
 
 class DeckFormat(str, Enum):
+    DEFAULT = "default"
     ARCHIDEKT = "archidekt"
     CUBECOBRA_CSV = "cubecobra_csv"
     DECKSTATS = "deckstats"
@@ -470,18 +384,8 @@ class DeckFormat(str, Enum):
     URL = "url"
 
 def parse_deck(deck_text: str, format: DeckFormat, handle_card: Callable, front_img_dir: str = '', double_sided_dir: str = '', image_handler: Callable = None) -> None:
-    if format == DeckFormat.SIMPLE:
-        parse_simple_list(deck_text, handle_card)
-    elif format == DeckFormat.MTGA:
-        parse_mtga(deck_text, handle_card)
-    elif format == DeckFormat.MTGO:
-        parse_mtgo(deck_text, handle_card)
-    elif format == DeckFormat.ARCHIDEKT:
-        parse_archidekt(deck_text, handle_card)
-    elif format == DeckFormat.DECKSTATS:
-        parse_deckstats(deck_text, handle_card)
-    elif format == DeckFormat.MOXFIELD:
-        parse_moxfield(deck_text, handle_card)
+    if format in TEXT_FORMATS:
+        parse_card_list(deck_text, handle_card)
     elif format == DeckFormat.SCRYFALL_JSON:
         parse_scryfall_json(deck_text, handle_card, front_img_dir, double_sided_dir, image_handler)
     elif format == DeckFormat.MPCFILL_XML:

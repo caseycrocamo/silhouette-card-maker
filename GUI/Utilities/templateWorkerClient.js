@@ -11,6 +11,10 @@ const DEADLINE_MS = 5 * 60 * 1000;
 
 function workerPath() {
   const { app } = require("electron");
+  if (!app.isPackaged && process.env.SCM_DEV_PYTHON) {
+    const root = path.resolve(__dirname, '../..');
+    return { exe: process.env.SCM_DEV_PYTHON, args: [path.join(root, 'template_worker.py')], cwd: root };
+  }
   const name = process.platform === "win32" ? "template_worker.exe" : "template_worker";
   const base = app.isPackaged ? path.join(process.resourcesPath, "bin") : path.join(__dirname, "../bin");
   const exe = path.join(base, name);

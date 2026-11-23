@@ -40,7 +40,7 @@ def request_scryfall(
     params: dict = None,
     retry_count: int = 0,
 ) -> requests.Response:
-    r = session.get(query, params=params, headers = {'user-agent': 'silhouette-card-maker/0.1', 'accept': '*/*'})
+    r = session.get(query, params=params, headers = {'user-agent': 'silhouette-card-maker/0.1', 'accept': '*/*'}, timeout=(5, 30))
 
     # Rate limit check - Scryfall requires 30 second wait per their documentation
     if r.status_code == 429:

@@ -16,6 +16,10 @@ function createStudioClient({ platform = process.platform, spawn = childProcess.
   }
   function command() {
     const electronApp = app || require('electron').app;
+    if (!electronApp.isPackaged && process.env.SCM_DEV_PYTHON) {
+      const root = path.resolve(__dirname, '../..');
+      return { exe: process.env.SCM_DEV_PYTHON, args: [path.join(root, 'studio_worker.py')], cwd: root };
+    }
     const base = electronApp.isPackaged ? path.join(process.resourcesPath, 'bin') : path.join(__dirname, '../bin');
     const exe = path.join(base, 'studio_worker.exe');
     if (exists(exe) || electronApp.isPackaged) return { exe, args: [], cwd: base };

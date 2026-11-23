@@ -83,7 +83,7 @@ Once Python and Node.js are installed, continue with the project setup steps bel
    ```
 
 3. **Build the Python executables**
-   Required for PDF generation in the GUI, including packaged Windows builds.
+   Required to package the app. Local development runs the Python source files.
 
    **Windows:**
    ```powershell
@@ -106,7 +106,7 @@ Once Python and Node.js are installed, continue with the project setup steps bel
 
    To build the executables, stage them, and package the app for your current OS:
    ```powershell
-   npm run build-all
+   npm run build:all
    ```
    Releases are written to `GUI/dist`: installer/ZIP on Windows, DMG/ZIP on
    macOS, and AppImage/tar.gz on Linux. Build on the target OS and architecture;
@@ -128,13 +128,30 @@ Once Python and Node.js are installed, continue with the project setup steps bel
 
 ## Running the GUI
 
-1. **Start the Electron app**
-   ```powershell
-   cd GUI
-   npm run start
-   ```
+From the project root, run:
 
-The GUI will open in a new window. You can generate PDFs, view images, and use all available features.
+```sh
+npm run dev
+```
+
+You can also run `npm run dev` from `GUI`. This builds the CSS and opens Electron.
+It runs the current Python source files, even if older executables are in
+`GUI/bin`. It does not install packages or build executables.
+
+Install the dependencies once before you start:
+
+```sh
+npm --prefix GUI install
+python -m pip install -r requirements.txt
+```
+
+The command uses an active Python virtual environment first, then `venv`, then
+`.venv` in the project root. If none exists, it uses `python` on Windows or
+`python3` on macOS/Linux. Install the requirements in that environment.
+Restart the app after you change Python code. CSS is rebuilt at each start.
+
+Use `npm run check:entrypoints` to rebuild and stage the executables when needed.
+Use `npm run build:all` to build and package a release.
 
 ### Create PDF settings
 

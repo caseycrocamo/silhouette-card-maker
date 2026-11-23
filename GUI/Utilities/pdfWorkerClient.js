@@ -40,11 +40,15 @@ const STOP_GRACE_MS = 2000;
 function resolveWorkerPath() {
   const executableName = process.platform === 'win32' ? 'pdf_worker.exe' : 'pdf_worker';
   const isPackaged = require('electron').app.isPackaged;
+  if (!isPackaged && process.env.SCM_DEV_PYTHON) {
+    const root = path.resolve(__dirname, '../..');
+    return { exePath: process.env.SCM_DEV_PYTHON, args: [path.join(root, 'pdf_worker.py')], cwd: root };
+  }
   const baseDir = isPackaged
     ? path.join(process.resourcesPath, 'bin')
     : path.join(__dirname, '../bin');
   const exePath = path.join(baseDir, executableName);
-  return { exePath, cwd: baseDir };
+  return { exePath, args: [], cwd: baseDir };
 }
 
 // --- Worker lifecycle -----------------------------------------------------
@@ -53,10 +57,10 @@ function resolveWorkerPath() {
 function startPdfWorker() {
   if (worker) return;
 
-  const { exePath, cwd } = resolveWorkerPath();
+  const { exePath, args, cwd } = resolveWorkerPath();
 
   // Ensure the executable has proper permissions on Unix-like systems.
-  if (process.platform !== 'win32') {
+  if (process.platform !== 'win32' && args.length === 0) {
     try {
       fs.chmodSync(exePath, '755');
     } catch (err) {
@@ -70,7 +74,7 @@ function startPdfWorker() {
 
   let child;
   try {
-    child = spawn(exePath, [], {
+    child = spawn(exePath, args, {
       shell: false,
       windowsHide: true,
       cwd,

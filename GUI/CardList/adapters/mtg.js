@@ -1,5 +1,5 @@
 "use strict";
-function createAdapter(fetcher = fetch) {
+function createAdapter(fetcher = fetch, importCards = payload => require("electron").ipcRenderer.invoke("card-request", payload)) {
   async function json(url) {
     const response = await fetcher(url);
     if (!response.ok)
@@ -25,44 +25,9 @@ function createAdapter(fetcher = fetch) {
     };
   }
   return {
-    parse(text) {
-      const entries = [],
-        errors = [];
-      text.split(/\r?\n/).forEach((raw, index) => {
-        let line = raw.trim();
-        if (!line) return;
-        let qty = 1;
-        const count = line.match(/^(\d+)x?\s+/);
-        if (count) {
-          qty = Number(count[1]);
-          line = line.slice(count[0].length);
-        }
-        const set = line.match(/\(([^)]+)\)(?:\s+(\S+))?/);
-        let setCode = "",
-          number = "";
-        if (set) {
-          setCode = set[1].trim();
-          number = set[2] || "";
-          line = line.replace(set[0], "").trim();
-        }
-        line = line.split(/\s*\[/)[0].trim();
-        if (!line || !Number.isSafeInteger(qty) || qty < 1) {
-          errors.push({
-            line: index + 1,
-            message: "Enter a card name and a positive quantity.",
-          });
-          return;
-        }
-        entries.push({
-          id: `line-${index + 1}`,
-          sourceLine: index + 1,
-          name: line,
-          qty,
-          setCode,
-          number,
-        });
-      });
-      return { entries, errors };
+    async parse(text) {
+      const result = await importCards({ op: "import", game: "mtg", format: "default", input: { kind: "text", value: text }, options: {} });
+      return { entries: result.entries, errors: result.errors, warnings: result.warnings };
     },
     async resolve(entry) {
       let url = "https://api.scryfall.com/cards/";

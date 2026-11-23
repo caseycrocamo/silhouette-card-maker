@@ -1,5 +1,19 @@
 /* Keep the deck in view beside the printing drawer on wide screens. The native
    dialog still owns focus and makes the background workspace inert. */
+.card-list-page [hidden] { display: none !important; }
+.card-list-workspace[data-url-intro="true"] {
+  display: block;
+  max-width: 44rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+  .card-list-editor #longText {
+    resize: none;
+    transition-property: color, background-color, border-color, box-shadow;
+  }
+}
+
 @media (min-width: 1101px) {
   body:has(#printingSelectorDialog[open]) .card-list-page {
     position: fixed;
@@ -40,6 +54,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  body:has(#printingSelectorDialog[open]) .card-list-results .card-image-preview,
   body:has(#printingSelectorDialog[open]) .card-list-results .card-image-frame,
   body:has(#printingSelectorDialog[open]) .card-list-results .paper-button--image {
     max-width: 216px;

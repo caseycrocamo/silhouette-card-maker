@@ -22,6 +22,20 @@ async function createPage(decklist) {
         const exact = parsed.pathname.match(/^\/cards\/([^/]+)\/([^/]+)$/);
         const name = parsed.searchParams.get('fuzzy') || 'Lightning Bolt';
         return { ok: true, json: async () => card(name, exact?.[1] || parsed.searchParams.get('set') || 'a', exact?.[2] || '1') };
+    }, async ({ input }) => {
+        // Worker response fixtures. Parser behavior is covered by Python tests.
+        const rows = {
+            'Lightning Bolt': ['Lightning Bolt', 1],
+            'Counterspell': ['Counterspell', 1],
+            '2x Lightning Bolt': ['Lightning Bolt', 2],
+            '3x Lightning Bolt': ['Lightning Bolt', 3],
+            '3x Lightning Bolt (B) 42': ['Lightning Bolt', 3, 'B', '42'],
+        };
+        return { entries: input.value.split('\n').map((line, index) => {
+            assert.ok(rows[line], `Missing worker fixture: ${line}`);
+            const [name, qty, setCode = '', number = ''] = rows[line];
+            return { id: `line-${index + 1}`, name, qty, setCode, number };
+        }), errors: [] };
     });
     const storage = new Map();
     const store = createStore({ getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }, 'mtg');

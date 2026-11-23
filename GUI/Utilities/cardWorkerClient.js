@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 
 function resolveCardWorker({ packaged, resourcesPath = process.resourcesPath, platform = process.platform } = {}) {
   const root = path.join(__dirname, '../..');
+  if (!packaged && process.env.SCM_DEV_PYTHON) return { command: process.env.SCM_DEV_PYTHON, args: [path.join(root, 'card_worker.py')], cwd: root };
   const bin = path.join(packaged ? resourcesPath : path.join(root, 'GUI'), 'bin', platform === 'win32' ? 'card_worker.exe' : 'card_worker');
   if (packaged || fs.existsSync(bin)) return { command: bin, args: [], cwd: path.dirname(bin) };
   const candidates = ['.venv', 'venv'].map(dir => path.join(root, dir, platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'));
@@ -33,6 +34,10 @@ function createCardWorkerClient({ launch = spawn, resolve = () => resolveCardWor
       try { response = JSON.parse(line); } catch { fail(new Error('Invalid card worker response.'), child); return; }
       const task = pending.get(response.id);
       if (!task) return;
+      if (response.type === 'progress') {
+        try { task.onProgress?.(response.progress); } catch (_) { /* A progress observer must not interrupt the worker. */ }
+        return;
+      }
       pending.delete(response.id); clearTimeout(task.timer);
       if (response.ok === false || response.error) task.reject(new Error(response.error || 'Card request failed.'));
       else task.resolve(response.result || response);
@@ -42,15 +47,15 @@ function createCardWorkerClient({ launch = spawn, resolve = () => resolveCardWor
     child.on('close', () => fail(new Error('Card worker stopped. Retry the request.'), child));
     return child;
   }
-  function request(payload) {
+  function request(payload, onProgress) {
     return new Promise((resolveTask, reject) => {
       let child;
       try { child = start(); } catch(error) { reject(error); return; }
       const id = ++sequence;
       const deadline = payload.op === 'import' ? importTimeoutMs : timeoutMs;
       const timer = setTimeout(() => fail(new Error('Card request timed out.'), child), deadline);
-      pending.set(id, { resolve: resolveTask, reject, timer });
-      child.stdin.write(JSON.stringify({ ...payload, version: 1, id }) + '\n', error => { if (error) fail(error, child); });
+      pending.set(id, { resolve: resolveTask, reject, timer, onProgress });
+      child.stdin.write(JSON.stringify({ ...payload, version: 1, id, ...(onProgress ? {streamProgress:true} : {}) }) + '\n', error => { if (error) fail(error, child); });
     });
   }
   async function stop() {
@@ -66,4 +71,4 @@ function createCardWorkerClient({ launch = spawn, resolve = () => resolveCardWor
 }
 let singleton;
 function getClient() { return singleton ||= createCardWorkerClient(); }
-module.exports = { createCardWorkerClient, resolveCardWorker, requestCards: payload => getClient().request(payload), stopCardWorker: () => singleton?.stop() };
+module.exports = { createCardWorkerClient, resolveCardWorker, requestCards: (payload, onProgress) => getClient().request(payload, onProgress), stopCardWorker: () => singleton?.stop() };

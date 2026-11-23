@@ -5,7 +5,6 @@ import hashlib
 import io
 import json
 from pathlib import Path
-import re
 import tempfile
 import uuid
 from urllib.parse import urlparse
@@ -15,9 +14,13 @@ from plugins.mtg import deck_formats, mpcfill, scryfall
 from plugins.mtg.common import ScryfallLanguage
 from plugins.mtg.selection_options import validate_options
 
-FORMATS = [{'id': item.value, 'label': item.value.replace('_', ' ').upper(),
-            'inputKind': 'url' if item.value == 'url' else 'file' if item.value in
-            ('cubecobra_csv', 'scryfall_json', 'mpcfill_xml') else 'text'} for item in deck_formats.DeckFormat]
+FORMATS = [
+    {'id': 'default', 'label': 'Simple (recommended)', 'inputKind': 'text'},
+    {'id': 'cubecobra_csv', 'label': 'CubeCobra CSV', 'inputKind': 'file'},
+    {'id': 'scryfall_json', 'label': 'Scryfall JSON', 'inputKind': 'file'},
+    {'id': 'mpcfill_xml', 'label': 'MPCFill XML', 'inputKind': 'file'},
+    {'id': 'url', 'label': 'URL', 'inputKind': 'url'},
+]
 
 def descriptor():
     return {'id': 'mtg', 'label': 'Magic: The Gathering', 'formats': FORMATS, 'inputKind': 'text',
@@ -29,6 +32,7 @@ class MtgImporter:
         self.root = Path(root)
         self.jobs = {}
         self._pending_images = None
+        self.http = requests.Session()
 
     def cached_faces(self):
         for job in self.jobs.values():
@@ -55,27 +59,21 @@ class MtgImporter:
     def download(self, url, name):
         if urlparse(url).scheme not in ('https', 'http'):
             raise ValueError('Image URL must use HTTP or HTTPS')
-        response = requests.get(url, timeout=45, headers={'User-Agent': 'silhouette-card-maker/1.3'})
+        response = self.http.get(url, timeout=(5, 30), headers={'User-Agent': 'silhouette-card-maker/1.3'})
         response.raise_for_status()
         return self.image(response.content, name)
 
-    def parse(self, text, fmt):
+    def parse(self, text, fmt, options=None):
         rows, errors = [], []
         def add(index, name, set_code='', number='', qty=1):
             if not name or not isinstance(qty, int) or isinstance(qty, bool) or qty < 1:
                 raise ValueError('Each card needs a name and positive whole quantity')
             rows.append({'id': f'row-{len(rows)+1}', 'name': name, 'setCode': set_code or '',
                          'number': str(number or ''), 'qty': qty, 'provenance': 'scryfall'})
-        if fmt == 'default':
-            for i, raw in enumerate(text.splitlines(), 1):
-                line = raw.strip()
-                if not line or line.lower().rstrip(':') in ('deck', 'sideboard', 'commander', 'companion') or line.startswith('//'):
-                    continue
-                match = re.match(r'^(?:(\d+)x?\s+)?(.+?)(?:\s+\(([^)]+)\)(?:\s+(\S+))?)?(?:\s+\[.*)?$', line)
-                if match:
-                    qty, name, code, number = match.groups()
-                    try: add(i, name, code, number, int(qty or 1))
-                    except ValueError as exc: errors.append({'line': i, 'message': str(exc)})
+        if fmt in deck_formats.TEXT_FORMATS:
+            deck_formats.parse_card_list(text, add, errors)
+            if not rows and not errors:
+                errors.append({'message': 'No cards were imported'})
             return rows, errors
         if fmt in ('cubecobra_csv', 'scryfall_json'):
             if fmt == 'cubecobra_csv':
@@ -97,7 +95,10 @@ class MtgImporter:
         else:
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                deck_formats.parse_deck(text, deck_formats.DeckFormat(fmt), add)
+                if fmt == 'url':
+                    deck_formats.parse_url(text, add, options)
+                else:
+                    deck_formats.parse_deck(text, deck_formats.DeckFormat(fmt), add)
             for line in output.getvalue().splitlines():
                 if line.startswith(('Error', 'Failed', 'URL not recognized')):
                     errors.append({'message': line})
@@ -134,15 +135,26 @@ class MtgImporter:
         cards = []
         def art(raw, index, quantity, clean_name, card_set, number, layout, all_parts=None,
                 card_name=None, prefer_langs=None, front_img_dir=None, double_sided_dir=None):
-            with tempfile.TemporaryDirectory(prefix='gui-mtg-') as tmp:
-                front = Path(tmp)/'front'; back = Path(tmp)/'back'; front.mkdir(); back.mkdir()
-                scryfall.fetch_card_art(index, 1, clean_name, card_set, number, layout, all_parts,
-                                       card_name, prefer_langs, str(front), str(back))
-                face = next(front.iterdir(), None)
-                if face is None: raise ValueError('No front image was returned')
-                faces = [self.image(face.read_bytes(), raw['name'])]
-                reverse = next(back.iterdir(), None)
-                if reverse: faces.append(self.image(reverse.read_bytes(), raw['name']+' back'))
+            direct_front = raw.get('image_uris', {}).get('png')
+            face_images = [face.get('image_uris', {}).get('png') for face in raw.get('card_faces', [])]
+            english = raw.get('lang', 'en') == 'en' and (not prefer_langs or prefer_langs == [ScryfallLanguage.ENGLISH])
+            if english and layout != 'meld' and (direct_front or (len(face_images) == 2 and all(face_images))):
+                # The card lookup already supplied CDN URLs. Avoid an extra API
+                # redirect for every face while keeping the selected printing.
+                faces = [self.download(direct_front or face_images[0], raw['name'])]
+                reverse = not direct_front and len(face_images) == 2
+                if reverse:
+                    faces.append(self.download(face_images[1], raw['name']+' back'))
+            else:
+                with tempfile.TemporaryDirectory(prefix='gui-mtg-') as tmp:
+                    front = Path(tmp)/'front'; back = Path(tmp)/'back'; front.mkdir(); back.mkdir()
+                    scryfall.fetch_card_art(index, 1, clean_name, card_set, number, layout, all_parts,
+                                           card_name, prefer_langs, str(front), str(back))
+                    face = next(front.iterdir(), None)
+                    if face is None: raise ValueError('No front image was returned')
+                    faces = [self.image(face.read_bytes(), raw['name'])]
+                    reverse = next(back.iterdir(), None)
+                    if reverse: faces.append(self.image(reverse.read_bytes(), raw['name']+' back'))
             card = dict(raw, set=card_set, collector_number=str(number))
             cards.append({'id': card.get('id') or f'{card_set}:{number}', 'name': card['name'],
                           'setCode': card_set.upper(), 'number': str(number), 'faces': faces,
@@ -155,9 +167,10 @@ class MtgImporter:
                            options['tokens'], '', '', art_handler=art)
         return cards[:1], cards[1:]
 
-    def import_game(self, request):
+    def import_game(self, request, on_progress=None):
         fmt = request.get('format', 'default')
-        if fmt not in ['default'] + [item['id'] for item in FORMATS]: raise ValueError('Unsupported MTG format')
+        if fmt not in deck_formats.TEXT_FORMATS and fmt not in [item['id'] for item in FORMATS]:
+            raise ValueError('Unsupported MTG format')
         options = validate_options(request.get('options'))
         source = request.get('input') or {}
         text = source.get('value')
@@ -167,12 +180,17 @@ class MtgImporter:
             text = path.read_text(encoding='utf-8-sig')
         if not isinstance(text, str) or len(text) > 2_000_000 or not text.strip(): raise ValueError('Enter a deck source')
         key = hashlib.sha256(json.dumps([fmt,text,options],sort_keys=True).encode()).hexdigest()
-        if key not in self.jobs:
-            rows, errors = self.parse(text, fmt)
+        if key not in self.jobs or (fmt == 'url' and self.jobs[key]['errors']):
+            rows, errors = self.parse(text, fmt, options)
             self.jobs[key] = {'rows': rows, 'errors': errors, 'resolved': {}}
             if len(self.jobs) > 20: self.jobs.pop(next(iter(self.jobs)))
         job = self.jobs[key]; entries=[]; errors=list(job['errors']); tokens={}
-        for row in job['rows']:
+        if request.get('parseOnly') is True:
+            return {'entries': job['rows'], 'errors': errors, 'warnings': []}
+        if on_progress:
+            on_progress({'reset': True, 'completed': 0, 'total': len(job['rows']), 'entries': [], 'errors': errors})
+        for completed, row in enumerate(job['rows'], 1):
+            before = len(entries)
             try:
                 cached = job['resolved'].get(row['id'])
                 if cached and any(not (self.root / (face['cacheId'] + '.png')).is_file()
@@ -189,5 +207,9 @@ class MtgImporter:
                     tokens[identity]['qty'] += row['qty']
             except Exception as exc:
                 entries.append(dict(row, error=str(exc)))
-        entries.extend(tokens.values())
+            if on_progress:
+                on_progress({'completed': completed, 'total': len(job['rows']), 'entries': entries[before:]})
+        explicit_tokens = {entry['printing']['id'] for entry in entries if entry.get('printing') and
+                           entry['printing'].get('rawCard', {}).get('layout') in ('token', 'double_faced_token', 'emblem')}
+        entries.extend(token for token in tokens.values() if token['printing']['id'] not in explicit_tokens)
         return {'entries':entries,'errors':errors,'warnings':[], 'status':'partial' if errors or any(not e.get('printing') for e in entries) else 'success'}

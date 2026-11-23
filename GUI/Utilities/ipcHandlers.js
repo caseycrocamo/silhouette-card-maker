@@ -765,7 +765,9 @@ ipcMain.handle('card-request', async (event, payload) => jobActivity.run(async (
   if (!payload || !['parse', 'resolve', 'release', 'capabilities', 'import'].includes(payload.op)) throw new Error('Invalid card operation.');
   if (payload.op === 'parse' && (typeof payload.text !== 'string' || payload.text.length > 1000000)) throw new Error('Invalid deck list.');
   if (payload.op === 'release' && (!Array.isArray(payload.cacheIds) || payload.cacheIds.some(id => !/^[a-f0-9]{32}$/.test(id)))) throw new Error('Invalid card cache IDs.');
-  return require('./cardWorkerClient').requestCards(payload);
+  return require('./cardWorkerClient').requestCards(payload, payload.progressId ? progress => {
+    if (!event.sender.isDestroyed()) event.sender.send('card-progress', {progressId:payload.progressId,progress});
+  } : undefined);
 }));
 ipcMain.handle('card-export', async (event, { plan } = {}) => jobActivity.run(async () => {
   if (!require('./updateIpc').isTrustedUpdateSender(event, path.resolve(__dirname, '..'))) throw new Error('Card commands are only available to application pages.');

@@ -26,7 +26,8 @@ def collect():
         ("custom-layout-calibration", "gui-parity"), ("game-plugins", "game-plugins"),
         ("template-tools", "template-tools"), ("printer-calibration", "printer-calibration"),
         ("pdf-settings", "pdf-settings"), ("updates", "update-ui"),
-        ("mtg-imports", "mtg-imports"), ("translation-parity", "text-translation"),
+        ("mtg-imports", "mtg-imports"), ("mtg-url", "mtg-url"),
+        ("card-list-layout", "card-list-layout"), ("translation-parity", "text-translation"),
         ("studio-tools", "studio-tools"),
     ]]
     print("CASES=" + json.dumps(cases))

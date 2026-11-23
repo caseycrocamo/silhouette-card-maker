@@ -65,6 +65,31 @@ async function run() {
   await screenshot("game-grid");
   await choose("mtg"); await field("game-option-mode");
   assert.equal(await js("!!document.activeElement.closest('dialog')"), true);
+  async function checkDropdownAlignment() {
+    await js("new Promise(resolve => requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
+    await js("document.getElementById('game-option-mode').click()");
+    assert.equal(await js(`(() => {
+      const control = document.getElementById('game-option-mode');
+      const menu = document.getElementById('game-option-mode-menu');
+      const a = control.getBoundingClientRect(), b = menu.getBoundingClientRect();
+      return !menu.hidden && Math.abs((a.left+a.right)/2-(b.left+b.right)/2)<1 &&
+        Math.abs(a.width-b.width)<1 && b.left>=0 && b.right<=innerWidth &&
+        b.top>=a.bottom && b.bottom<=innerHeight;
+    })()`), true, "Menu should be centered on its control and fit the viewport");
+    await screenshot("dropdown-" + await js("innerWidth"));
+    await js("document.getElementById('game-option-mode').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))");
+    assert.equal(await js("document.getElementById('game-option-mode-menu').hidden && document.getElementById('gameOptionsDialog').open"), true);
+  }
+  await checkDropdownAlignment();
+  await win.setSize(375, 900);
+  await checkDropdownAlignment();
+  await win.setSize(1440, 1100);
+  await js(`(() => {
+    const control=document.getElementById('game-option-mode');
+    for(const key of ['ArrowDown','ArrowDown','Enter']) control.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true}));
+  })()`);
+  assert.equal(await js("document.getElementById('game-option-mode').value"), "translation");
+  await set("game-option-mode", "cards");
   await screenshot("mtg-options");
   await cancel();
   assert.equal(await js("document.activeElement.dataset.game"), "mtg");

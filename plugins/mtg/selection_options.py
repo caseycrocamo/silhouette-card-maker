@@ -2,7 +2,8 @@
 from .common import ScryfallLanguage
 
 BOOLEAN_OPTIONS = ('ignore_set_and_collector_number', 'prefer_older_sets', 'prefer_showcase',
-                   'prefer_extra_art', 'prefer_ub', 'ignore_ub', 'tokens')
+                   'prefer_extra_art', 'prefer_ub', 'ignore_ub', 'tokens',
+                   'include_maybeboard', 'include_sideboard')
 LIST_OPTIONS = ('prefer_set', 'ignore_set', 'prefer_lang')
 
 def validate_options(value=None):

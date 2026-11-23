@@ -56,3 +56,31 @@ test('bulk imports have their own deadline for long decks', async () => {
   assert.equal((await request).status, 'success');
   await client.stop();
 });
+
+test('development uses source despite existing binaries; packaged apps keep their binary', t => {
+  const previous = process.env.SCM_DEV_PYTHON;
+  t.after(() => { if (previous === undefined) delete process.env.SCM_DEV_PYTHON; else process.env.SCM_DEV_PYTHON = previous; });
+  process.env.SCM_DEV_PYTHON = '/chosen/python';
+  const target = resolveCardWorker({ packaged: false });
+  assert.equal(target.command, '/chosen/python');
+  assert.equal(target.args[0], require('node:path').resolve(__dirname, '../card_worker.py'));
+  const packaged = resolveCardWorker({ packaged: true, resourcesPath: '/resources' });
+  assert.equal(packaged.args.length, 0);
+  assert.notEqual(packaged.command, '/chosen/python');
+});
+
+test('progress records keep the import pending until its final response',async()=>{
+  const child=fake(),updates=[];
+  const client=createCardWorkerClient({launch:()=>child,resolve:()=>({command:'worker',args:[]}),env:{}});
+  let settled=false;
+  const result=client.request({op:'import',game:'mtg'},progress=>updates.push(progress));
+  result.then(()=>{settled=true;});
+  assert.equal(JSON.parse(child.stdin.read().toString()).streamProgress,true);
+  child.stdout.write(JSON.stringify({id:1,type:'progress',progress:{completed:1,total:2,entries:[{id:'one'}]}})+'\n');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(settled,false);
+  assert.equal(updates[0].completed,1);
+  child.stdout.write('{"id":1,"result":{"entries":[{"id":"one"},{"id":"two"}]}}\n');
+  assert.equal((await result).entries.length,2);
+  await client.stop();
+});

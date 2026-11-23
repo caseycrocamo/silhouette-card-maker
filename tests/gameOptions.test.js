@@ -3,7 +3,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { games } = require("../GUI/shared/cardList/gameRegistry");
 const { createStore } = require("../GUI/shared/cardList/sessionStore");
-const { loadGameOptions, hasGameOptions, normalizeOptions, saveGameOptions } = require("../GUI/shared/gameOptions");
+const { loadGameOptions, hasGameOptions, normalizeOptions, saveGameOptions, optionsSummary } = require("../GUI/shared/gameOptions");
 function storage() {
   const values = new Map();
   return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
@@ -28,6 +28,18 @@ test("confirming game options preserves drafts belonging to both formats", () =>
   assert.equal(store.load().draft, "first URL");
   assert.equal(store.load().source, "second");
   assert.equal(store.load("two").draft, "second URL");
+});
+test("legacy MTG text formats retain their draft keys under the shared label", () => {
+  const game = loadGameOptions(games.mtg);
+  for (const format of ["simple", "mtga", "mtgo", "archidekt", "deckstats", "moxfield"]) {
+    const data = storage(), store = createStore(data, "mtg");
+    store.save("2 Lightning Bolt", "front_only", { format });
+    const selected = normalizeOptions(game, store.load());
+    assert.equal(selected.format, format);
+    assert.ok(optionsSummary(game, selected).startsWith("Simple (recommended)"));
+    saveGameOptions(data, game, selected);
+    assert.equal(store.load().draft, "2 Lightning Bolt");
+  }
 });
 
 test("every game can load its options while the card worker is unavailable", () => {

@@ -54,6 +54,16 @@
     border-radius: 50%;
     animation: image-loading-spin 0.8s linear infinite;
   }
+  .card-image-preview {
+    position: relative;
+    width: 100%;
+  }
+  .card-image-flip {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    z-index: 1;
+  }
   .card-image-frame {
     position: relative;
     aspect-ratio: 745 / 1040;
@@ -108,6 +118,34 @@
   .paper-button--image {
     @apply block w-full p-0 overflow-hidden;
   }
+
+  .paper-button--dropdown {
+    @apply flex w-full items-center justify-between gap-4 px-4 text-left font-mono text-sm;
+  }
+  .paper-button.paper-button--dropdown { transform: none; }
+  .paper-button--dropdown::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    margin-right: 4px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+  }
+  .paper-dropdown-menu {
+    @apply fixed rounded-lg border border-content-light bg-surface-dark text-content shadow-lg font-mono text-sm font-medium;
+    z-index: 1000;
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .paper-dropdown-menu[hidden] { display: none; }
+  .paper-dropdown-option {
+    @apply rounded px-3 py-2 cursor-pointer;
+    overflow-wrap: anywhere;
+  }
+  .paper-dropdown-option.is-active { @apply bg-content-light text-surface-dark; }
 
   /* Grouped controls keep their borders and interaction states in the shared component. */
   .paper-button-group {
@@ -430,6 +468,24 @@
   .paper-input {
     @apply w-full px-4 py-3 rounded-lg border-2 border-dashed border-content-light bg-surface-dark text-content shadow focus:border-content-dark focus:ring-2 focus:ring-content-light focus:outline-none placeholder-content-light/50 font-mono text-sm transition-all duration-200 cursor-text;
   }
+
+  select.paper-input:not([multiple]):not([size]),
+  select.paper-input:not([multiple])[size="1"] {
+    @apply appearance-none cursor-pointer pr-12;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23CBD5E1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1rem 1rem;
+  }
+
+  @media (forced-colors: active) {
+    select.paper-input:not([multiple]):not([size]),
+    select.paper-input:not([multiple])[size="1"] {
+      appearance: auto;
+      background-image: none;
+    }
+  }
+
   .card-grid-item {
     @apply relative aspect-[3/4] rounded-lg overflow-hidden border-2 border-transparent transition-all duration-200;
   }

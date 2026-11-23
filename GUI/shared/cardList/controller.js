@@ -5,8 +5,14 @@ function createController({
   onDraft = () => {},
 }) {
   let generation = 0;
-  const state = { entries: [], errors: [], warnings: [], status: "empty", draft: "" };
+  const state = { entries: [], errors: [], warnings: [], status: "empty", draft: "", progress: null };
   const notify = () => onChange(state);
+  // Adopt imported text without canceling the search that is loading it.
+  function replaceDraft(text) {
+    state.draft = text;
+    onDraft(text);
+    notify();
+  }
   function dirty(text) {
     generation++;
     state.draft = text;
@@ -14,6 +20,7 @@ function createController({
     state.entries = [];
     state.errors = [];
     state.warnings = [];
+    state.progress = null;
     onDraft(text);
     notify();
   }
@@ -28,18 +35,36 @@ function createController({
     const token = ++generation;
     state.draft = text;
     state.status = "loading";
+    state.progress = null;
     if (!retry) state.errors = [];
     notify();
     try {
       const parsed = retry && !adapter.reimportOnRetry
         ? { entries: state.entries, errors: previousErrors }
-        : await adapter.parse(text);
+        : await adapter.parse(text, { isCurrent: () => token === generation, onProgress: progress => {
+          if (token !== generation) return;
+          if (progress.reset) state.entries = [];
+          state.progress = {completed:progress.completed,total:progress.total};
+          if (progress.errors) state.errors = progress.errors;
+          for (const item of progress.entries || []) {
+            const previous = retry && adapter.preserveResolvedOnRetry ? previousEntries.get(item.id) : null;
+            const printing = previous?.printing || item.printing;
+            const entry = {...item,printing,status:printing ? "ready" : "error"};
+            const index = state.entries.findIndex(existing => existing.id === item.id);
+            if (index < 0) state.entries.push(entry); else state.entries[index] = entry;
+          }
+          notify();
+        } });
       if (token !== generation) return;
-      state.entries = parsed.entries.map((e) => ({
-        ...e,
-        ...(retry && adapter.preserveResolvedOnRetry && previousEntries.has(e.id) ? {printing: previousEntries.get(e.id).printing} : {}),
-        status: (e.printing || (adapter.preserveResolvedOnRetry && previousEntries.has(e.id))) && retry ? "ready" : "loading",
-      }));
+      const streamed = new Map(state.progress ? state.entries.map(entry => [entry.id,entry]) : []);
+      state.entries = parsed.entries.map(e => {
+        const old = streamed.get(e.id);
+        const sameImages = old?.printing && e.printing && old.printing.id === e.printing.id &&
+          JSON.stringify(old.printing.faces) === JSON.stringify(e.printing.faces);
+        const printing = retry && adapter.preserveResolvedOnRetry && previousEntries.has(e.id)
+          ? previousEntries.get(e.id).printing : sameImages ? old.printing : e.printing;
+        return Object.assign(old || {}, e, {printing,status:printing ? "ready" : "loading"});
+      });
       state.errors = parsed.errors || [];
       state.warnings = parsed.warnings || [];
       notify();
@@ -71,6 +96,7 @@ function createController({
         notify();
       }
       if (token !== generation) return;
+      state.progress = null;
       state.status = state.entries.some((e) => e.status !== "ready")
         ? "error"
         : state.errors.length && adapter.allowPartial
@@ -86,6 +112,7 @@ function createController({
     } catch (error) {
       if (token !== generation) return;
       state.errors = [{ message: error.message }];
+      state.progress = null;
       state.status = "error";
       notify();
     }
@@ -142,6 +169,21 @@ function createController({
       }
     }
   }
+  function changeQuantity(entry, delta) {
+    if (!["ready", "partial", "error"].includes(state.status) ||
+        !state.entries.includes(entry) || ![-1, 1].includes(delta)) return false;
+    const quantity = entry.qty + delta;
+    if (!Number.isSafeInteger(quantity) || quantity < 0) return false;
+    if (quantity === 0) state.entries = state.entries.filter(item => item !== entry);
+    else entry.qty = quantity;
+    state.status = state.entries.some(item => item.status !== "ready") ? "error" :
+      state.errors.length ? (adapter.allowPartial ? "partial" : "error") :
+        state.entries.length ? "ready" : "empty";
+    state.draft = adapter.serialize(state.entries);
+    onDraft(state.draft);
+    notify();
+    return true;
+  }
   return {
     state,
     dirty,
@@ -149,8 +191,10 @@ function createController({
     search,
     changePrinting,
     applyPrinting,
+    changeQuantity,
+    replaceDraft,
     canExport: () =>
-      Boolean((state.status === "ready" || (adapter.allowPartial && state.status === "partial")) && !state.entries.some((e) => e.changing)),
+      Boolean(state.entries.length && (state.status === "ready" || (adapter.allowPartial && state.status === "partial")) && !state.entries.some((e) => e.changing)),
     cancel: () => generation++,
   };
 }

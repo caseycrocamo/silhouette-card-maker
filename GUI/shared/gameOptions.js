@@ -1,16 +1,21 @@
 "use strict";
 
 const { createButton } = require("./button");
+const { createDropdown } = require("./dropdown");
 const { createStore } = require("./cardList/sessionStore");
 const gameCatalog = require("./gameCatalog.json");
+const LEGACY_MTG_TEXT_FORMATS = ["simple", "mtga", "mtgo", "archidekt", "deckstats", "moxfield"];
 
 function loadGameOptions(game) {
   if (["mtg", "pokemon"].includes(game.id)) {
     return {
       ...game,
       formats: game.id === "pokemon" ? [{ id: "default", label: "Limitless", inputKind: "text" }] : [
-        { id: "default", label: "Card names and printings", inputKind: "text" },
-        ...["simple", "mtga", "mtgo", "archidekt", "deckstats", "moxfield", "cubecobra_csv", "scryfall_json", "mpcfill_xml", "url"].map(id => ({ id, label: id.replace(/_/g, " ").toUpperCase(), inputKind: id === "url" ? "url" : ["cubecobra_csv", "scryfall_json", "mpcfill_xml"].includes(id) ? "file" : "text" })),
+        { id: "default", label: "Simple (recommended)", inputKind: "text" },
+        { id: "cubecobra_csv", label: "CubeCobra CSV", inputKind: "file" },
+        { id: "scryfall_json", label: "Scryfall JSON", inputKind: "file" },
+        { id: "mpcfill_xml", label: "MPCFill XML", inputKind: "file" },
+        { id: "url", label: "URL", inputKind: "url" },
       ],
       sourceChoices: [], scenarioChoices: [],
     };
@@ -21,7 +26,10 @@ function loadGameOptions(game) {
 }
 
 function normalizeOptions(game, saved = {}, format) {
-  const chosenFormat = game.formats.find(item => item.id === (format || saved.format)) || game.formats[0];
+  const requestedFormat = format || saved.format;
+  const legacyTextFormat = game.id === "mtg" && LEGACY_MTG_TEXT_FORMATS.includes(requestedFormat);
+  // Preserve the stored format key and draft until the user changes formats.
+  const chosenFormat = legacyTextFormat ? { id: requestedFormat } : game.formats.find(item => item.id === requestedFormat) || game.formats[0];
   return {
     format: chosenFormat.id,
     source: game.sourceChoices?.some(item => item.id === saved.source) ? saved.source : game.sourceChoices?.[0]?.id || "",
@@ -50,7 +58,8 @@ function saveGameOptions(storage, game, options) {
 function optionsSummary(game, options) {
   const labels = [];
   for (const [items, value] of [[game.formats, options.format], [game.sourceChoices, options.source], [game.scenarioChoices, options.scenario]]) {
-    const label = items?.find(item => item.id === value)?.label;
+    const label = items?.find(item => item.id === value)?.label ||
+      (items === game.formats && game.id === "mtg" && !game.formats.some(item => item.id === value) ? "Simple (recommended)" : "");
     if (label) labels.push(label);
   }
   if (game.workflows.length > 1) labels.push(options.workflow === "double_sided" ? "Paired fronts and backs" : game.id === "mtg" ? "Faces printed separately" : "Fronts only");
@@ -82,12 +91,14 @@ function chooseGameOptions({ game, storage, trigger, chooseDirectory, alwaysShow
   const footer = doc.createElement("div");
   footer.className = "game-options-actions";
   let settled = false;
+  const dropdowns = [];
   let descriptor, selection, readSelection;
   let resolveChoice;
   const answer = new Promise(resolve => { resolveChoice = resolve; });
   const finish = value => {
     if (settled) return;
     settled = true;
+    dropdowns.forEach(dropdown => dropdown.destroy());
     if (dialog.open) dialog.close();
     dialog.remove();
     if (trigger?.isConnected) trigger.focus();
@@ -111,16 +122,13 @@ function chooseGameOptions({ game, storage, trigger, chooseDirectory, alwaysShow
     label.htmlFor = id;
     const caption = doc.createElement("span");
     caption.className = "font-semibold text-sm";
+    caption.id = id + "-label";
     caption.textContent = labelText;
-    const select = doc.createElement("select");
-    select.id = id;
-    select.className = "paper-input";
-    for (const item of choices) {
-      const option = doc.createElement("option");
-      option.value = item.id; option.textContent = item.label;
-      select.append(option);
-    }
-    select.value = selected;
+    const displayedChoices = game.id === "mtg" && id === "game-option-format" && LEGACY_MTG_TEXT_FORMATS.includes(selected)
+      ? choices.map(item => item.id === "default" ? { ...item, id: selected } : item) : choices;
+    const dropdown = createDropdown({ id, labelledBy: caption.id, choices: displayedChoices, value: selected }, doc);
+    dropdowns.push(dropdown);
+    const select = dropdown.control;
     label.append(caption, select); parent.append(label);
     return select;
   }

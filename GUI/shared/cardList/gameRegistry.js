@@ -4,7 +4,7 @@ const games = {
     id: "mtg",
     name: "Magic: The Gathering",
     example: "1x Sol Ring (eoc) 57\n3x Lightning Bolt",
-    help: "Enter card names. Quantity, set, and card number are optional.",
+    help: "Enter card names or paste an Arena, MTGO, Archidekt, Deckstats, or Moxfield text export. Quantity, set, and card number are optional.",
     defaultWorkflow: "double_sided",
     workflows: ["front_only", "double_sided"],
   },

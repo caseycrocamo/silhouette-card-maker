@@ -1,3 +1,31 @@
+# Silhouette Card Maker 1.5.0
+
+November 23, 2026
+
+## Card imports
+
+- Use **Simple (recommended)** for plain card lists and text exports from Arena, MTGO, Archidekt, Deckstats, and Moxfield. Keep CSV, JSON, XML, and URL imports available.
+- Convert URL decks to Simple card lists, then use the same card loader, image source, token handling, and deck cache. Edit the imported text directly.
+- Choose whether to include maybeboard, sideboard, and tokens before fetching a URL. All three start unchecked for a new URL.
+- Give Archidekt board tags priority over strategy tags. Exclude unchecked optional boards even when their cards also have tags such as Ramp or Draw. Keep token-making cards in the main deck.
+- Show a loading count and card images as each card finishes. Keep loaded images in place as more results arrive.
+- Add network timeouts, reuse image connections, and download images directly from the URLs supplied by Scryfall when possible.
+
+## Card list interface
+
+- Add **+** and **−** controls to URL imports. Update the list text and export counts when quantities change. Remove a card when its last copy is removed.
+- Save imported list edits in the current session. Restore the source list or load another URL without changing the deck website.
+- Fit the deck list text area to its contents, capped at the results panel's height on wide screens.
+- Keep card images and the selected face in place when copy counts change. Place **Flip card** over the image's bottom-right corner.
+- Show completed counts as **99 unique cards · 100 total cards**.
+- Center game-option menus on their controls, use consistent text styles, and shorten the navbar wordmark to **SCM**.
+
+## Development and checks
+
+- Run current Python sources during local development, even when older worker executables are present. Keep packaged apps on bundled workers.
+- Start development without rebuilding executables or installing packages. Build CSS before Electron starts and report startup failures.
+- Add checks for URL section choices, whole-deck cache reuse, streaming progress, saved edits, image stability, and editor sizing.
+
 # Silhouette Card Maker 1.4.1
 
 November 11, 2026

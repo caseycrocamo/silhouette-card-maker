@@ -1,7 +1,7 @@
 import io
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import pytest
 import requests
 from PIL import Image
@@ -34,19 +34,20 @@ def test_real_cli_formats_parse(importer,fmt,text):
 
 def test_url_uses_cli_parser(importer):
     cards=[SimpleNamespace(name='Bolt',extension='m11',number='146',quantity=3)]
-    with patch.object(deck_formats.mtg_parser,'parse_deck',return_value=cards):
+    with patch.object(deck_formats.mtg_parser.MoxfieldDeckParser,'parse_deck',return_value=cards):
         rows,errors=importer.parse('https://moxfield.com/decks/test','url')
     assert rows[0]['qty']==3 and not errors
 
 def test_unsupported_url_reports_failure(importer):
-    with patch.object(deck_formats.mtg_parser,'parse_deck',return_value=None):
+    with patch.object(deck_formats.cloudscraper,'create_scraper') as scraper:
         rows,errors=importer.parse('https://invalid.test/deck','url')
     assert not rows and errors
+    scraper.assert_not_called()
 
 def test_custom_front_and_back_decode_to_png_without_false_identity(importer):
     row={'id':'1','name':'Custom','provenance':'custom','frontUrl':'https://art.test/front','backUrl':'https://art.test/back'}
     response=SimpleNamespace(content=png(),raise_for_status=lambda:None)
-    with patch('plugins.gui_adapters.mtg.requests.get',return_value=response):
+    with patch.object(importer.http,'get',return_value=response):
         cards,tokens=importer.resolve(row,{})
     card=cards[0]
     assert card['custom'] and card['paired'] and 'rawCard' not in card and not tokens
@@ -99,7 +100,7 @@ def test_failed_back_rolls_back_row_images_and_preserves_successful_cache(import
         downloads.append(url)
         if url.endswith('/back'): raise requests.ConnectionError('Back is offline')
         return SimpleNamespace(content=png(),raise_for_status=lambda:None)
-    with patch('plugins.gui_adapters.mtg.requests.get',side_effect=download):
+    with patch.object(importer.http,'get',side_effect=download):
         first=importer.import_game(request)
         earlier=first['entries'][0]['printing']['faces'][0]['cacheId']
         assert 'Back is offline' in first['entries'][1]['error']
@@ -109,3 +110,205 @@ def test_failed_back_rolls_back_row_images_and_preserves_successful_cache(import
     assert {path.stem for path in importer.root.glob('*.png')}=={earlier}
     assert downloads.count('https://art.test/earlier')==1
     assert downloads.count('https://art.test/front')==2
+
+
+@pytest.mark.parametrize('fmt', sorted(deck_formats.TEXT_FORMATS))
+def test_all_text_aliases_accept_the_same_mixed_list(importer, fmt):
+    text = """About
+Name Mixed export
+Deck
+Lightning Bolt
+2x Lightning Bolt (M11) 146
+3 Lightning Bolt
+4x Lightning Bolt (m11) 146★ *F* [Burn] ^Have,#37d67a^
+5 [M11#146-1] Lightning Bolt #!Commander
+Sideboard:
+1 Fire // Ice (MH2) 290
+// Comment
+"""
+    rows, errors = importer.parse(text, fmt)
+    assert not errors
+    assert [(r['name'], r['qty'], r['setCode'], r['number']) for r in rows] == [
+        ('Lightning Bolt', 1, '', ''), ('Lightning Bolt', 2, 'M11', '146'),
+        ('Lightning Bolt', 3, '', ''), ('Lightning Bolt', 4, 'm11', '146★'),
+        ('Lightning Bolt', 5, 'M11', '146-1'), ('Fire // Ice', 1, 'MH2', '290'),
+    ]
+
+
+def test_invalid_text_rows_keep_source_lines_and_valid_cards(importer):
+    rows, errors = importer.parse('Deck\n0 Bolt\n1 Island\n2x\n9007199254740992 Plains', 'default')
+    assert [(r['name'], r['qty']) for r in rows] == [('Island', 1)]
+    assert [error['line'] for error in errors] == [2, 4, 5]
+
+
+def test_card_names_are_not_mistaken_for_arena_deck_metadata(importer):
+    rows, errors = importer.parse('About\nName My export\n\nDeck\nName Dropping\nB.F.M. (Big Furry Monster)', 'default')
+    assert not errors
+    assert [row['name'] for row in rows] == ['Name Dropping', 'B.F.M. (Big Furry Monster)']
+
+
+@pytest.mark.parametrize('url,reader_class,document,export', [
+    ('https://moxfield.com/decks/test', deck_formats.mtg_parser.MoxfieldDeckParser,
+     {'commanders': {}, 'companions': {}, 'mainboard': {
+         'Lightning Bolt': {'quantity': 2, 'card': {'set': 'm11', 'cn': '146★'}}}},
+     '2 Lightning Bolt (m11) 146★ *F*'),
+    ('https://archidekt.com/decks/123', deck_formats.mtg_parser.ArchidektDeckParser,
+     {'categories': [{'name': 'Main', 'includedInDeck': True}], 'cards': [{
+         'quantity': 2, 'categories': ['Main'], 'card': {'oracleCard': {'name': 'Lightning Bolt'},
+         'edition': {'editioncode': 'm11'}, 'collectorNumber': '146★'}}]},
+     '2x Lightning Bolt (m11) 146★ [Main]'),
+    ('https://deckstats.net/decks/123/456-test/', deck_formats.mtg_parser.DeckstatsDeckParser,
+     {'props': {'entries': [{'name': 'Lightning Bolt', 'amount': 2}]}},
+     '2 Lightning Bolt'),
+])
+def test_url_fetch_reuses_site_reader_then_shared_text_parser(importer, url, reader_class, document, export):
+    import json
+    response = SimpleNamespace(json=lambda: document, text=(
+        '<script data-page="app" type="application/json">' + json.dumps(document) + '</script>'))
+    client = MagicMock()
+    client.get.return_value = response
+    original = reader_class._parse_deck
+    with patch.object(deck_formats.cloudscraper, 'create_scraper', return_value=client), \
+         patch.object(reader_class, '_parse_deck', autospec=True, side_effect=original) as site_reader, \
+         patch.object(deck_formats, 'parse_card_line', wraps=deck_formats.parse_card_line) as text_reader:
+        rows, errors = importer.parse(url, 'url')
+    assert not errors
+    client.get.assert_called_once()
+    site_reader.assert_called_once()
+    assert text_reader.call_count == 1
+    pasted, paste_errors = importer.parse(export, 'default')
+    assert not paste_errors and rows == pasted
+
+
+def test_url_late_failure_retains_imported_cards(importer):
+    def cards():
+        yield SimpleNamespace(name='Lightning Bolt', extension='m11', number='146', quantity=2)
+        raise ValueError('Bad second site record')
+    with patch.object(deck_formats.mtg_parser.MoxfieldDeckParser, 'parse_deck', return_value=cards()):
+        rows, errors = importer.parse('https://moxfield.com/decks/test', 'url')
+    assert len(rows) == 1 and rows[0]['qty'] == 2
+    assert errors and 'Bad second site record' in errors[0]['message']
+
+
+@pytest.mark.parametrize('url,reader_class', [
+    ('https://aetherhub.com/Deck/test', deck_formats.mtg_parser.AetherhubDeckParser),
+    ('https://archidekt.com/decks/123', deck_formats.mtg_parser.ArchidektDeckParser),
+    ('https://deckstats.net/decks/123/456-test/', deck_formats.mtg_parser.DeckstatsDeckParser),
+    ('https://moxfield.com/decks/test', deck_formats.mtg_parser.MoxfieldDeckParser),
+    ('https://mtggoldfish.com/deck/123', deck_formats.mtg_parser.MtggoldfishDeckParser),
+    ('https://mtgjson.com/api/v5/decks/test.json', deck_formats.mtg_parser.MtgjsonDeckParser),
+    ('https://scryfall.com/@user/decks/00000000-0000-0000-0000-000000000000', deck_formats.mtg_parser.ScryfallDeckParser),
+    ('https://tappedout.net/mtg-decks/test/', deck_formats.mtg_parser.TappedoutDeckParser),
+    ('https://tcgplayer.com/magic-the-gathering/deck/test/123', deck_formats.mtg_parser.TcgplayerDeckParser),
+])
+def test_each_url_uses_its_site_reader_after_download(importer, url, reader_class):
+    document = {'fixture': 'downloaded document'}
+    cards = [SimpleNamespace(name='Lightning Bolt', extension='m11', number='146', quantity=2)]
+    with patch.object(deck_formats.cloudscraper, 'create_scraper'), \
+         patch.object(reader_class, '_download_deck', return_value=document) as download, \
+         patch.object(reader_class, '_parse_deck', return_value=cards) as reader:
+        rows, errors = importer.parse(url, 'url')
+    assert not errors and rows[0]['name'] == 'Lightning Bolt'
+    download.assert_called_once()
+    reader.assert_called_once_with(document)
+
+
+
+def test_parse_only_returns_rows_before_downloading_images(importer):
+    request = {'format': 'url', 'parseOnly': True,
+               'input': {'kind': 'url', 'value': 'https://moxfield.com/decks/test'}}
+    cards = [SimpleNamespace(name='Lightning Bolt', extension='m11', number='146', quantity=2)]
+    with patch.object(deck_formats.mtg_parser.MoxfieldDeckParser, 'parse_deck', return_value=cards), \
+         patch.object(importer, 'resolve', side_effect=AssertionError('Must not download images')):
+        result = importer.import_game(request)
+    assert not result['errors']
+    assert result['entries'][0]['name'] == 'Lightning Bolt'
+    assert 'printing' not in result['entries'][0]
+
+
+def test_failed_url_fetch_is_not_cached_on_retry(importer):
+    request = {'format': 'url', 'parseOnly': True,
+               'input': {'kind': 'url', 'value': 'https://moxfield.com/decks/test'}}
+    cards = [SimpleNamespace(name='Lightning Bolt', extension='m11', number='146', quantity=2)]
+    with patch.object(deck_formats.mtg_parser.MoxfieldDeckParser, 'parse_deck',
+                      side_effect=[requests.Timeout('Site timeout'), cards]) as fetch:
+        first = importer.import_game(request)
+        second = importer.import_game(request)
+    assert first['errors'] and not first['entries']
+    assert not second['errors'] and second['entries']
+    assert fetch.call_count == 2
+
+
+@pytest.mark.parametrize('double_sided', [False, True])
+def test_card_metadata_image_urls_avoid_extra_api_redirects(importer, double_sided):
+    raw = {'id': 'fixture', 'name': 'Fixture card', 'set': 'm11', 'collector_number': '146',
+           'lang': 'en', 'layout': 'transform' if double_sided else 'normal'}
+    if double_sided:
+        raw['card_faces'] = [{'image_uris': {'png': 'https://cards.scryfall.io/front.png'}},
+                             {'image_uris': {'png': 'https://cards.scryfall.io/back.png'}}]
+    else:
+        raw['image_uris'] = {'png': 'https://cards.scryfall.io/front.png'}
+    def fetch(*args, **kwargs):
+        kwargs['art_handler'](raw, 1, 1, 'Fixturecard', 'm11', '146', raw['layout'])
+    response = SimpleNamespace(content=png(), raise_for_status=lambda: None)
+    with patch('plugins.gui_adapters.mtg.scryfall.fetch_card', side_effect=fetch), \
+         patch('plugins.gui_adapters.mtg.scryfall.fetch_card_art') as legacy_images, \
+         patch.object(importer.http, 'get', return_value=response) as get:
+        result = importer.import_game({'format': 'default', 'input': {'kind': 'text', 'value': 'Fixture card'}})
+    assert not result['errors']
+    assert len(result['entries'][0]['printing']['faces']) == (2 if double_sided else 1)
+    assert result['entries'][0]['printing']['paired'] == double_sided
+    assert get.call_count == (2 if double_sided else 1)
+    assert get.call_args.kwargs['timeout'] == (5, 30)
+    legacy_images.assert_not_called()
+
+
+def test_url_requests_have_timeouts_and_check_http_errors(importer):
+    client = requests.Session()
+    response = MagicMock()
+    response.json.return_value = {'commanders': {}, 'companions': {}, 'mainboard': {
+        'Lightning Bolt': {'quantity': 1, 'card': {'set': 'm11', 'cn': '146'}}}}
+    with patch.object(client, 'request', return_value=response) as request, \
+         patch.object(deck_formats.cloudscraper, 'create_scraper', return_value=client):
+        rows, errors = importer.parse('https://moxfield.com/decks/test', 'url')
+    assert rows and not errors
+    assert request.call_args.kwargs['timeout'] == (5, 30)
+    response.raise_for_status.assert_called_once()
+
+
+
+def test_url_to_simple_keeps_a_large_deck_in_one_cache_job(importer):
+    rows = [{'id': f'row-{i}', 'name': f'Card {i}', 'qty': 1,
+             'setCode': 'M11', 'number': str(i), 'provenance': 'scryfall'} for i in range(1, 96)]
+    parse = importer.parse
+    def read(text, fmt, options=None):
+        return (rows, []) if fmt == 'url' else parse(text, fmt)
+    source = 'https://archidekt.com/decks/28135484/example'
+    with patch.object(importer, 'parse', side_effect=read), \
+         patch.object(importer, 'resolve', return_value=([{'id': 'card', 'faces': []}], [])) as resolve:
+        metadata = importer.import_game({'format': 'url', 'parseOnly': True,
+                                         'input': {'kind': 'url', 'value': source}})
+        assert resolve.call_count == 0
+        text = '\n'.join(f"{row['name']} ({row['setCode']}) {row['number']}" for row in metadata['entries'])
+        request = {'format': 'default', 'input': {'kind': 'text', 'value': text}}
+        first = importer.import_game(request)
+        second = importer.import_game(request)
+    assert len(first['entries']) == len(second['entries']) == 95
+    assert resolve.call_count == 95  # The second load reuses all 95 cached cards.
+    assert len(importer.jobs) == 2  # URL metadata and one complete Simple deck.
+
+
+def test_shared_deck_import_streams_counts_and_card_images_before_finishing(importer):
+    updates = []
+    def resolve(row, options):
+        assert len(updates) == (1 if row['name'] == 'Bolt' else 2)
+        return [{'id': row['name'], 'name': row['name'], 'faces': []}], []
+    with patch.object(importer, 'resolve', side_effect=resolve):
+        result = importer.import_game({'format': 'default', 'input': {'kind': 'text', 'value': '2 Bolt\nIsland'}},
+                                      on_progress=updates.append)
+    assert updates[0] == {'reset': True, 'completed': 0, 'total': 2, 'entries': [], 'errors': []}
+    assert [update['completed'] for update in updates] == [0, 1, 2]
+    assert updates[1]['entries'][0]['printing']['id'] == 'Bolt'
+    assert updates[2]['entries'][0]['printing']['id'] == 'Island'
+    assert len(result['entries']) == 2
+    assert len(importer.jobs) == 1

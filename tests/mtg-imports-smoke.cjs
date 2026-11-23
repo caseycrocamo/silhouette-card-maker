@@ -17,6 +17,16 @@ async function run(){
  const wait=async predicate=>{const end=Date.now()+10000;while(Date.now()<end){if(await js(predicate))return;await new Promise(r=>setTimeout(r,40));}throw Error(await js('document.body.innerText'));};
  await win.loadFile(path.join(root,'GUI/CardList/decklist.html'),{query:{game:'mtg'}});
  await wait('!document.getElementById("longText").disabled');
+ await js(`sessionStorage.setItem('card-list:v1:mtg:selection',JSON.stringify({format:'moxfield'}));sessionStorage.setItem('card-list:v1:mtg:moxfield',JSON.stringify({format:'moxfield',draft:'2 Lightning Bolt (M11) 146',workflow:'front_only'}));`);
+ await win.loadFile(path.join(root,'GUI/CardList/decklist.html'),{query:{game:'mtg'}});
+ await wait('!document.getElementById("longText").disabled');
+ await wait("!document.getElementById('nextCreatePdfBtn').disabled");
+ assert.equal(requests[0].format,'moxfield');
+ await js("document.getElementById('gameOptionsBtn').click()");await wait("!!document.getElementById('game-option-format')");
+ assert.equal(await js("document.getElementById('game-option-format').textContent"),'Simple (recommended)');
+ await js("document.getElementById('gameOptionsContinue').click()");
+ assert.equal(await js("document.getElementById('longText').value"),'2 Lightning Bolt (M11) 146');
+ requests.length=0;
  await js("document.getElementById('gameOptionsBtn').click()");await wait("!!document.getElementById('game-option-format')");
  await js("document.getElementById('game-option-format').value='cubecobra_csv';document.getElementById('gameOptionsContinue').click()");
  await js("[...document.querySelectorAll('button')].find(b=>b.textContent==='Open deck file').click()");

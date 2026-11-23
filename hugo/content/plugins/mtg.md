@@ -7,6 +7,14 @@ This plugin reads a decklist and automatically fetches the card art and puts the
 
 This plugin supports many decklist formats such as `simple`, `mtga`, `mtgo`, `archidekt`, `cubecobra_csv`, `deckstats`, `moxfield`, `scryfall_json`, `mpcfill_xml`, and `url`. To learn more, see [here](#formats).
 
+In the desktop app, **Simple (recommended)** accepts plain card names and text exports from Arena, MTGO, Archidekt, Deckstats, and Moxfield. These formats use one shared text parser. You can mix their line styles in one list. Quantity, set code, and collector number are optional. The old CLI format names remain available as aliases; `default` also selects the shared parser.
+
+CSV, JSON, and XML files keep separate readers. URL imports fetch the deck with its site's reader, then pass the card records through the shared text parser.
+
+Before fetching a URL, choose whether to include the maybeboard, sideboard, or tokens. All three start unchecked for each new URL. The token option includes source token cards and related tokens, without adding a second copy of an explicit source token.
+
+URL imports fetch the deck data and convert it to a Simple card list. The URL field then becomes the Simple deck list editor. The converted list uses the same card loader, image source, token handling, and cache as a list entered in Simple mode. The loading count advances and card images appear as each card finishes. Edit the list, then select **Search cards** to apply the changes. Use **+** and **−** on a card to change its copy count and update the list text. Removing the last copy removes the card from the local list. These changes are saved in the current session. Select **Reset card changes** to restore the source list, or **Load another URL** to import another deck. The source website is not changed.
+
 ## Basic Instructions
 
 Navigate to the root directory as plugins are not meant to be run in the plugins directory.
@@ -28,7 +36,7 @@ Now you can create the PDF using [`create_pdf.py`]({{% ref "../docs/create" %}})
 ## CLI Options
 
 ```
-Usage: fetch.py [OPTIONS] DECK_PATH {archidekt|cubecobra_csv|deckstats|moxfield|mpcfill_xml|mtga|mtgo|scryfall_json|simple|url}
+Usage: fetch.py [OPTIONS] DECK_PATH {default|archidekt|cubecobra_csv|deckstats|moxfield|mpcfill_xml|mtga|mtgo|scryfall_json|simple|url}
 
 Options:
   -i, --ignore_set_and_collector_number

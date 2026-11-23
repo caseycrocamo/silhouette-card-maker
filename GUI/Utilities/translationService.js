@@ -30,11 +30,11 @@ function createTranslationService(dependencies = {}) {
     const baseDir = app.isPackaged ? path.join(resourcesPath, 'bin') : path.join(projectRoot, 'GUI/bin');
     const executable = path.join(baseDir, `translated_text_boxes_to_pdf${platform === 'win32' ? '.exe' : ''}`);
     let command = executable, prefix = [], cwd = baseDir;
-    if (!io.existsSync(executable)) {
+    if ((!app.isPackaged && process.env.SCM_DEV_PYTHON) || !io.existsSync(executable)) {
       if (app.isPackaged) throw new Error('The translation executable is missing. Reinstall the app.');
       const script = path.join(projectRoot, 'translated_text_boxes_to_pdf.py');
       const candidates = ['venv', '.venv'].map(dir => platform === 'win32' ? path.join(projectRoot, dir, 'Scripts/python.exe') : path.join(projectRoot, dir, 'bin/python'));
-      command = candidates.find(candidate => io.existsSync(candidate));
+      command = process.env.SCM_DEV_PYTHON || candidates.find(candidate => io.existsSync(candidate));
       if (!command || !io.existsSync(script)) throw new Error('Cannot find the translation script or project Python environment.');
       prefix = [script]; cwd = projectRoot;
     } else if (platform !== 'win32') {

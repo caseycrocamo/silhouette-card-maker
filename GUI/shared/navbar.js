@@ -289,7 +289,7 @@ class Navbar extends HTMLElement {
             Object.hasOwn(games, explicitGame) ? explicitGame : Object.hasOwn(games, savedGame) ? savedGame : 'mtg';
         this.innerHTML = `
             <nav class="navbar-shell paper-surface" aria-label="Main navigation">
-                <span class="navbar-wordmark">Silhouette</span>
+                <span class="navbar-wordmark">SCM</span>
                 <ol class="navbar-steps" aria-label="Card creation steps">
                     ${this.renderStep(1, 'Choose Game', '../Home/home.html', currentStep)}
                     ${this.renderStep(2, 'Card List', '../CardList/decklist.html?game=' + activeGame, currentStep)}

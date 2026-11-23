@@ -40,7 +40,7 @@ class CardWorker:
             self.mtg_importer.invalidate(ids)
         return {'released': len(ids)}
 
-    def handle(self, request):
+    def handle(self, request, on_progress=None):
         if request.get('version') != 1:
             raise ValueError('Unsupported protocol version')
         op = request.get('op')
@@ -61,7 +61,7 @@ class CardWorker:
                 from plugins.gui_adapters.mtg import MtgImporter
                 if not hasattr(self, 'mtg_importer'):
                     self.mtg_importer = MtgImporter(self.root)
-                result = self.mtg_importer.import_game(request)
+                result = self.mtg_importer.import_game(request, on_progress=on_progress)
                 # Include token faces cached before duplicate token rows are combined.
                 for face in self.mtg_importer.cached_faces():
                     self.cache[('mtg', face['cacheId'])] = face
@@ -102,6 +102,7 @@ def main():
             stream.reconfigure(encoding='utf-8')
     worker = CardWorker(os.environ.get('CARD_MAKER_CACHE_DIR'))
     print(json.dumps({'version': 1, 'ready': True}), flush=True)
+    protocol_output = sys.stdout
     for line in sys.stdin:
         request = {}
         try:
@@ -110,7 +111,10 @@ def main():
                 request = {}
                 raise ValueError('Request must be an object')
             with contextlib.redirect_stdout(sys.stderr):
-                result = worker.handle(request)
+                def progress(value):
+                    print(json.dumps({'version': 1, 'id': request.get('id'), 'type': 'progress', 'progress': value}, ensure_ascii=False),
+                          file=protocol_output, flush=True)
+                result = worker.handle(request, on_progress=progress if request.get('streamProgress') else None)
             response = {'version': 1, 'id': request.get('id'), 'result': result}
         except Exception as error:
             response = {'version': 1, 'id': request.get('id'), 'error': str(error)}

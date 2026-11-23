@@ -193,6 +193,8 @@ async function run() {
   ipcMain.handle('updates:get-state', () => ({ status: 'idle', enabled: false }));
   ipcMain.handle('read-offset-data', () => ({ x_offset: 0, y_offset: 0 }));
   ipcMain.handle('get-default-calibration-pdf', () => '');
+  const printing = require('../GUI/CardList/adapters/mtg').createAdapter().normalize(fixtures[0]);
+  ipcMain.handle('card-request', () => ({ entries: [{ id: 'sol-ring', name: 'Sol Ring', qty: 3, printing }], errors: [] }));
   win = new BrowserWindow({ show: false, width: 1536, height: 1024, webPreferences: { backgroundThrottling: false, nodeIntegration: true, contextIsolation: false, preload } });
   holdImages = true;
   await win.loadFile(path.join(root, 'GUI/CardList/decklist.html'), { query: { game: 'mtg' } });

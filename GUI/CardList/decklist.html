@@ -18,7 +18,7 @@
       <header class="mb-8 flex flex-wrap justify-between items-start gap-4">
         <div>
           <h1 id="gameTitle" class="text-4xl font-bold mb-3">Card list</h1>
-          <p>Paste a deck list. Review each card before you create the PDF.</p>
+          <p id="pageIntro">Paste a deck list. Review each card before you create the PDF.</p>
           <p id="gameOptionsSummary" class="text-sm text-content-light mt-2" role="status"></p>
           <p id="printingHint" class="text-sm text-content-light mt-2" hidden>
             <em>Click a card image to change its printing.</em>
@@ -29,10 +29,10 @@
           <a href="../Home/home.html" class="paper-button">Change game</a>
         </div>
       </header>
-      <div class="card-list-workspace grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div id="cardWorkspace" class="card-list-workspace grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <section class="card-list-editor paper-element p-6">
           <form id="longForm" class="space-y-4">
-            <label for="longText" class="block text-xl font-semibold"
+            <label id="inputLabel" for="longText" class="block text-xl font-semibold"
               >Deck list</label
             >
             <p id="syntaxHelp" class="text-sm text-content-light"></p>
@@ -42,8 +42,14 @@
               rows="12"
               aria-describedby="syntaxHelp"
               spellcheck="false"
-            ></textarea
-            ><button id="searchBtn" class="paper-button w-full" type="submit">
+            ></textarea>
+            <fieldset id="urlFetchOptions" class="space-y-2" hidden>
+              <legend class="font-semibold mb-2">Include in this import</legend>
+              <label class="flex items-center gap-2"><input id="urlIncludeMaybeboard" type="checkbox"> Include maybeboard</label>
+              <label class="flex items-center gap-2"><input id="urlIncludeSideboard" type="checkbox"> Include sideboard</label>
+              <label class="flex items-center gap-2"><input id="urlIncludeTokens" type="checkbox"> Include tokens</label>
+            </fieldset>
+            <button id="searchBtn" class="paper-button w-full" type="submit">
               Search Cards</button
             ><button
               id="exportBtn"
@@ -55,7 +61,7 @@
             </button>
           </form>
         </section>
-        <section class="card-list-results paper-element p-6 lg:col-span-2">
+        <section id="resultsSection" class="card-list-results paper-element p-6 lg:col-span-2">
           <h2 class="text-xl font-semibold mb-3">Search results</h2>
           <p
             id="resultStatus"
@@ -66,7 +72,7 @@
           <div id="output" class="min-h-[200px]"></div>
         </section>
       </div>
-      <section class="card-list-workflow paper-element p-6 mt-8">
+      <section id="workflowSection" class="card-list-workflow paper-element p-6 mt-8">
         <button id="nextCreatePdfBtn" class="paper-button" disabled>
           Next: Create PDF
         </button>
