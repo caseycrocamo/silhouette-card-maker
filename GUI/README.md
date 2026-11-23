@@ -212,6 +212,14 @@ the repository's `GITHUB_TOKEN`; public clients need no embedded token. A manual
 workflow dispatch runs the builds and checks only and does not create or publish
 a release.
 
+To use a managed runner for Apple Silicon release builds, connect the provider
+to this repository and set the Actions repository variable
+`APPLE_SILICON_RELEASE_RUNNER` to its Apple Silicon runner label. Use a fresh
+virtual machine for each job. Run the release workflow manually and confirm
+that the Apple Silicon job passes before pushing a release tag. The variable
+applies only to the Apple Silicon release target. Delete it to return to
+GitHub's `macos-15` runner for future runs.
+
 For a local build, install the GUI dependencies with `npm ci`, build the CSS,
 build and stage native Python entrypoints from the repository root, then run an
 appropriate command from `GUI` on the matching platform, such as
