@@ -220,6 +220,11 @@ that the Apple Silicon job passes before pushing a release tag. The variable
 applies only to the Apple Silicon release target. Delete it to return to
 GitHub's `macos-15` runner for future runs.
 
+If GitHub reports that a hosted runner did not pick up the Apple Silicon job
+and all other build jobs passed, the workflow retries that job once. The retry
+reuses the other builds. Build errors and manual cancellations still require
+review.
+
 For a local build, install the GUI dependencies with `npm ci`, build the CSS,
 build and stage native Python entrypoints from the repository root, then run an
 appropriate command from `GUI` on the matching platform, such as
